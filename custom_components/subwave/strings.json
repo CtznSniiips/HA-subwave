@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to SUB/WAVE",
+        "description": "Enter the address of your SUB/WAVE server.",
+        "data": {
+          "host": "Host or IP address",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect. Check the host/port and that SUB/WAVE is running.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This SUB/WAVE server is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SUB/WAVE Options",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dj_name": { "name": "DJ" },
+      "now_playing_title": { "name": "Now Playing" },
+      "listeners": { "name": "Listeners" },
+      "weather_condition": { "name": "Weather" },
+      "current_show": { "name": "Show" },
+      "llm_tokens": { "name": "LLM Tokens Used" }
+    },
+    "binary_sensor": {
+      "stream_online": { "name": "Stream Online" }
+    }
+  }
+}
