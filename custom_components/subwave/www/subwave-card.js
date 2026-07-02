@@ -19,11 +19,10 @@ const LAYOUT_LABELS = {
 };
 const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4 };
 
-const REQUEST_MODES = ["hidden", "always", "toggle"];
+const REQUEST_MODES = ["hidden", "always"];
 const REQUEST_MODE_LABELS = {
-  hidden: "Hidden",
-  always: "Always shown",
-  toggle: "Click card to show/hide",
+  hidden: "Hidden - tap card to show",
+  always: "Always on",
 };
 
 // Shared across every layout: the power button (outline circle, grey glyph
@@ -58,10 +57,6 @@ const COMMON_STYLE = `
     .feedback.visible { display: block; }
     .feedback.error { color: var(--error-color, #db4437); }
     .feedback.ok { color: var(--success-color, #43a047); }
-    .request-hint {
-      font-size: 0.7rem; color: var(--secondary-text-color); text-align: center;
-      margin-top: 12px; opacity: 0.7;
-    }
     .volume {
       -webkit-appearance: none;
       appearance: none;
@@ -95,7 +90,6 @@ const COMMON_STYLE = `
 `;
 
 function requestBlockHtml(config) {
-  if (config.requests_mode === "hidden") return "";
   const formHtml = `
     <form class="request-form">
       <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
@@ -104,11 +98,8 @@ function requestBlockHtml(config) {
     </form>
     <div class="feedback"></div>
   `;
-  if (config.requests_mode === "toggle") {
-    return `
-      <div class="request-hint">Tap the card to request a song</div>
-      <div class="request-wrap" style="display:none;">${formHtml}</div>
-    `;
+  if (config.requests_mode === "hidden") {
+    return `<div class="request-wrap" style="display:none;">${formHtml}</div>`;
   }
   return `<div class="request-wrap">${formHtml}</div>`;
 }
@@ -121,7 +112,7 @@ const POWER_BTN_HTML = `
 
 function layoutTemplate(layout, config) {
   const requestBlock = requestBlockHtml(config);
-  const toggleClass = config.requests_mode === "toggle" ? " requests-toggle" : "";
+  const toggleClass = config.requests_mode === "hidden" ? " requests-toggle" : "";
 
   if (layout === "hero") {
     return `
@@ -262,7 +253,7 @@ class SubwaveCard extends HTMLElement {
 
   static _resolveRequestsMode(config) {
     if (REQUEST_MODES.includes(config.requests_mode)) return config.requests_mode;
-    // Back-compat for configs saved before the always/toggle/hidden modes existed.
+    // Back-compat for configs saved before the always/hidden modes existed.
     return config.show_requests === false ? "hidden" : "always";
   }
 
@@ -297,7 +288,7 @@ class SubwaveCard extends HTMLElement {
   getCardSize() {
     if (!this._config) return 4;
     const base = LAYOUT_BASE_SIZE[this._config.layout] || 4;
-    // "toggle" mode starts collapsed (just a one-line hint), so it doesn't
+    // "hidden" mode starts collapsed (just a one-line hint), so it doesn't
     // need the same reserved space as a form that's always visible.
     return base + (this._config.requests_mode === "always" ? 1 : 0);
   }
@@ -344,7 +335,6 @@ class SubwaveCard extends HTMLElement {
       pwrIcon: this.querySelector(".pwr-icon"),
       volume: this.querySelector(".volume"),
       requestWrap: this.querySelector(".request-wrap"),
-      requestHint: this.querySelector(".request-hint"),
       form: this.querySelector(".request-form"),
       reqText: this.querySelector(".req-text"),
       reqName: this.querySelector(".req-name"),
@@ -383,7 +373,7 @@ class SubwaveCard extends HTMLElement {
       });
     }
 
-    if (this._config.requests_mode === "toggle" && els.cardBody) {
+    if (this._config.requests_mode === "hidden" && els.cardBody) {
       els.cardBody.addEventListener("click", (event) => {
         if (event.target.closest("input, button, a")) return;
         this._toggleRequestForm();
@@ -395,9 +385,6 @@ class SubwaveCard extends HTMLElement {
     if (!this._els.requestWrap) return;
     const isOpen = this._els.requestWrap.style.display !== "none";
     this._els.requestWrap.style.display = isOpen ? "none" : "block";
-    if (this._els.requestHint) {
-      this._els.requestHint.style.display = isOpen ? "block" : "none";
-    }
   }
 
   _render() {
