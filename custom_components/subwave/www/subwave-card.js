@@ -28,7 +28,7 @@ const COMMON_STYLE = `
     .subwave-card { padding: 12px 16px 16px; }
     .pwr-btn {
       background: transparent;
-      border: 2px solid var(--primary-text-color);
+      border: 1px solid var(--primary-text-color);
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; padding: 0; flex-shrink: 0;
@@ -113,6 +113,7 @@ function layoutTemplate(layout, config) {
           <div class="readout">
             <div class="title">—</div>
             <div class="artist"></div>
+            <div class="dj-line"></div>
           </div>
           <div class="controls">
             ${POWER_BTN_HTML}
@@ -137,6 +138,10 @@ function layoutTemplate(layout, config) {
           .layout-retro .artist {
             font-family: var(--code-font-family, monospace); font-size: 0.75rem; color: var(--secondary-text-color);
             margin-top: 2px; text-transform: uppercase;
+          }
+          .layout-retro .dj-line {
+            font-family: var(--code-font-family, monospace); font-size: 0.7rem; color: var(--secondary-text-color);
+            margin-top: 4px; text-transform: uppercase; opacity: 0.7; min-height: 1em;
           }
           .layout-retro .controls { display: flex; align-items: center; gap: 12px; }
           .layout-retro .pwr-btn { width: 44px; height: 44px; }
@@ -288,6 +293,7 @@ class SubwaveCard extends HTMLElement {
       title: this.querySelector(".title"),
       artist: this.querySelector(".artist"),
       subline: this.querySelector(".subline"),
+      djLine: this.querySelector(".dj-line"),
       quote: this.querySelector(".quote"),
       listeners: this.querySelector(".listeners"),
       badge: this.querySelector(".badge"),
@@ -366,7 +372,7 @@ class SubwaveCard extends HTMLElement {
     const listenersText =
       listenersCount === undefined || listenersCount === null
         ? null
-        : `${listenersCount} listening${listenersCount === 1 ? "" : "s"}`;
+        : `${listenersCount} listening`;
 
     if (this._els.listeners) this._els.listeners.textContent = listenersText || "";
 
@@ -379,8 +385,12 @@ class SubwaveCard extends HTMLElement {
       this._els.subline.textContent = parts.join(" · ");
     }
 
+    if (this._els.djLine) {
+      this._els.djLine.textContent = this._config.show_dj && attrs.dj_name ? attrs.dj_name : "";
+    }
+
     if (this._els.quote) {
-      const text = attrs.dj_commentary || attrs.dj_tagline;
+      const text = this._config.show_dj ? attrs.dj_commentary || attrs.dj_tagline : null;
       if (text) {
         this._els.quote.textContent = `"${text}"${attrs.dj_name ? ` — ${attrs.dj_name}` : ""}`;
         this._els.quote.style.display = "";
