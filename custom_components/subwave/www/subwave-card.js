@@ -50,6 +50,35 @@ const COMMON_STYLE = `
     .feedback { font-size: 0.8rem; margin-top: 6px; min-height: 1em; }
     .feedback.error { color: var(--error-color, #db4437); }
     .feedback.ok { color: var(--success-color, #43a047); }
+    .volume {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 2px;
+      background: var(--divider-color);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .volume::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+    }
+    .volume::-moz-range-track {
+      height: 2px;
+      background: var(--divider-color);
+      border-radius: 2px;
+    }
+    .volume::-moz-range-thumb {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      border: none;
+      cursor: pointer;
+    }
   </style>
 `;
 
@@ -393,7 +422,7 @@ class SubwaveCard extends HTMLElement {
       const text = this._config.show_dj ? attrs.dj_commentary || attrs.dj_tagline : null;
       if (text) {
         this._els.quote.textContent = `"${text}"${attrs.dj_name ? ` — ${attrs.dj_name}` : ""}`;
-        this._els.quote.style.display = "";
+        this._els.quote.style.display = "block";
       } else {
         this._els.quote.style.display = "none";
       }
