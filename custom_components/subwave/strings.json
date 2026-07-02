@@ -35,10 +35,16 @@
       "listeners": { "name": "Listeners" },
       "weather_condition": { "name": "Weather" },
       "current_show": { "name": "Show" },
-      "llm_tokens": { "name": "LLM Tokens Used" }
+      "llm_tokens": { "name": "LLM Tokens Used" },
+      "up_next": { "name": "Up Next" },
+      "last_request": { "name": "Last Request" },
+      "dj_activity": { "name": "DJ Activity" },
+      "dj_commentary": { "name": "DJ Commentary" },
+      "session": { "name": "Session" }
     },
     "binary_sensor": {
-      "stream_online": { "name": "Stream Online" }
+      "stream_online": { "name": "Stream Online" },
+      "needs_setup": { "name": "Needs Setup" }
     }
   }
 }

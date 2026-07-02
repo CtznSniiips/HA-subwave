@@ -141,10 +141,17 @@ class SubWaveMediaPlayer(SubWaveEntity, MediaPlayerEntity):
         weather = context.get("weather") or {}
         time_ctx = context.get("time") or {}
         listeners = data.get("listeners") or {}
+        queue_state = data.get("queueState") or {}
+        current = queue_state.get("current") or {}
+        upcoming = queue_state.get("upcoming") or []
         return {
             "stream_url": self.coordinator.stream_url("mp3"),
             "proxy_stream_url": get_proxy_stream_url(self.hass, self._entry_id, "mp3"),
             "cover_art_url": self._cover_art_url(),
+            "requested_by": current.get("requestedBy"),
+            "source": current.get("source"),
+            "up_next": upcoming[0].get("title") if upcoming else None,
+            "queue_length": len(upcoming),
             "dj_name": dj.get("name"),
             "dj_tagline": dj.get("tagline"),
             "genre": now_playing.get("genre"),

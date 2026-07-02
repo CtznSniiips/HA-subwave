@@ -8,19 +8,26 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import SubWaveCoordinator
 from .entity import SubWaveEntity
+from .util import get_nested
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: SubWaveCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SubWaveStreamOnline(coordinator, entry.entry_id)])
+    async_add_entities(
+        [
+            SubWaveStreamOnline(coordinator, entry.entry_id),
+            SubWaveNeedsSetup(coordinator, entry.entry_id),
+        ]
+    )
 
 
 class SubWaveStreamOnline(SubWaveEntity, BinarySensorEntity):
@@ -50,4 +57,36 @@ class SubWaveStreamOnline(SubWaveEntity, BinarySensorEntity):
             "opus_enabled": stream.get("opusEnabled"),
             "flac_enabled": stream.get("flacEnabled"),
             "aac_enabled": stream.get("aacEnabled"),
+        }
+
+
+class SubWaveNeedsSetup(SubWaveEntity, BinarySensorEntity):
+    """Reflects the needsSetup flag from /api/state.
+
+    True means SUB/WAVE itself is flagging that it needs attention (e.g.
+    first-run setup incomplete) - useful for a persistent notification
+    automation rather than something you'd expect to be on day-to-day.
+    """
+
+    _attr_translation_key = "needs_setup"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: SubWaveCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_needs_setup"
+
+    @property
+    def is_on(self) -> bool:
+        return bool(
+            get_nested(self.coordinator.data or {}, "queueState", "needsSetup", default=False)
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        return {
+            "auto_pick": get_nested(data, "queueState", "autoPick"),
+            "auto_link": get_nested(data, "queueState", "autoLink"),
+            "picker_busy": get_nested(data, "queueState", "pickerBusy"),
         }

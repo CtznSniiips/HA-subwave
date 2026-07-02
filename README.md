@@ -19,6 +19,12 @@ For each configured SUB/WAVE server you get one device with:
 | `sensor.<station>_show` | Sensor | Current show/period name; vibe/mood/dominant mood as attributes |
 | `sensor.<station>_llm_tokens` | Sensor | Cumulative LLM tokens used by the DJ agent |
 | `binary_sensor.<station>_stream_online` | Binary Sensor | Connectivity class; bitrate/format/mount as attributes |
+| `sensor.<station>_up_next` | Sensor | Title of the next queued track ("Nothing queued" if empty); artist/requested_by/source/full queue as attributes |
+| `sensor.<station>_last_request` | Sensor | Name of whoever most recently requested a track (checks current, then falls back through history); "None" if nothing was listener-requested recently |
+| `sensor.<station>_dj_activity` | Sensor | Latest DJ log line (track changes, scheduler events, skill runs); last 10 entries as an attribute |
+| `sensor.<station>_dj_commentary` | Sensor | The DJ's most recent spoken link/transition (truncated to 255 chars for the state; full text always in the `full_text` attribute). Also carries the DJ's track-pick reasoning as attributes |
+| `sensor.<station>_session` | Sensor | Current autonomous session's kind (e.g. `auto`); id/key/show/started_at plus the last 5 scenario/mood-shift events as attributes |
+| `binary_sensor.<station>_needs_setup` | Binary Sensor | Diagnostic; true if SUB/WAVE is flagging it needs attention. Also carries `auto_pick`/`auto_link`/`picker_busy` as attributes |
 
 ## Installation (HACS)
 
@@ -37,6 +43,29 @@ directory, restart HA, then add the integration as above.
 
 After setup, click **Configure** on the integration to change the polling
 interval (default 15s, range 5–120s).
+
+## Requests, queue, and DJ activity (`/api/state` and `/api/session`)
+
+In addition to `/api/now-playing`, this integration polls two more
+endpoints each cycle, both fetched concurrently and treated as
+non-critical - if your SUB/WAVE version doesn't have one, or it's
+temporarily unreachable, the core entities (now playing, DJ, listeners,
+weather, stream) keep working fine; only the sensors derived from that
+endpoint go blank.
+
+- **`/api/state`** - listener requests, the upcoming queue, play history,
+  and a terse DJ activity log (`sensor.<station>_up_next`,
+  `sensor.<station>_last_request`, `sensor.<station>_dj_activity`,
+  `binary_sensor.<station>_needs_setup`).
+- **`/api/session`** - the full session transcript: the DJ's actual
+  spoken commentary between tracks, its reasoning for each track pick,
+  and scenario/mood-shift events (`sensor.<station>_dj_commentary`,
+  `sensor.<station>_session`).
+
+This is the natural hook for anything reacting to listener shoutouts or
+requests - e.g. an automation on `sensor.<station>_last_request` changing
+state to fire a TTS announcement or flash a light when someone requests a
+song through SUB/WAVE's native request queue.
 
 ## Album art
 

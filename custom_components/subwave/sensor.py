@@ -17,16 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import SubWaveCoordinator
 from .entity import SubWaveEntity
-
-
-def _get(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
-    """Safely walk a chain of nested dict keys."""
-    cur: Any = data
-    for key in keys:
-        if not isinstance(cur, dict):
-            return default
-        cur = cur.get(key)
-    return cur if cur is not None else default
+from .util import get_nested as _get
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -35,6 +26,130 @@ class SubWaveSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[dict[str, Any]], Any] = lambda data: None
     attrs_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+
+
+def _up_next_title(data: dict[str, Any]) -> str:
+    upcoming = _get(data, "queueState", "upcoming", default=[]) or []
+    if not upcoming:
+        return "Nothing queued"
+    return upcoming[0].get("title") or "Nothing queued"
+
+
+def _up_next_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    upcoming = _get(data, "queueState", "upcoming", default=[]) or []
+    next_track = upcoming[0] if upcoming else {}
+    return {
+        "artist": next_track.get("artist"),
+        "requested_by": next_track.get("requestedBy"),
+        "source": next_track.get("source"),
+        "queue_length": len(upcoming),
+        "queue": upcoming,
+    }
+
+
+def _last_request(data: dict[str, Any]) -> Any:
+    """Most recent track (current or history) that was actually requested by a listener."""
+    current = _get(data, "queueState", "current", default={}) or {}
+    if current.get("requestedBy"):
+        return current
+    for track in _get(data, "queueState", "history", default=[]) or []:
+        if track.get("requestedBy"):
+            return track
+    return None
+
+
+def _last_request_name(data: dict[str, Any]) -> str:
+    request = _last_request(data)
+    return request["requestedBy"] if request else "None"
+
+
+def _last_request_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    request = _last_request(data) or {}
+    return {
+        "title": request.get("title"),
+        "artist": request.get("artist"),
+        "started_at": request.get("startedAt"),
+        "queued_at": request.get("queuedAt"),
+    }
+
+
+def _latest_dj_log(data: dict[str, Any]) -> Any:
+    log = _get(data, "queueState", "djLog", default=[]) or []
+    return log[0] if log else None
+
+
+def _dj_activity_message(data: dict[str, Any]) -> str | None:
+    entry = _latest_dj_log(data)
+    return entry.get("message") if entry else None
+
+
+def _dj_activity_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    entry = _latest_dj_log(data) or {}
+    return {
+        "kind": entry.get("kind"),
+        "timestamp": entry.get("t"),
+        "recent_log": (_get(data, "queueState", "djLog", default=[]) or [])[:10],
+    }
+
+
+# HA truncates entity states longer than this in the recorder/frontend, so
+# long free-text sensors keep the full text in an attribute and cap the
+# state itself.
+_MAX_STATE_LENGTH = 255
+
+
+def _truncate(text: str | None) -> str | None:
+    if text is None:
+        return None
+    if len(text) <= _MAX_STATE_LENGTH:
+        return text
+    return text[: _MAX_STATE_LENGTH - 1] + "…"
+
+
+def _find_last_message(data: dict[str, Any], role: str, kind: str) -> dict[str, Any] | None:
+    """Session messages are chronological (oldest first) - scan from the end."""
+    messages = _get(data, "sessionLog", "messages", default=[]) or []
+    for msg in reversed(messages):
+        if msg.get("role") == role and msg.get("kind") == kind:
+            return msg
+    return None
+
+
+def _dj_commentary_value(data: dict[str, Any]) -> str | None:
+    link = _find_last_message(data, "segment", "link")
+    return _truncate(link.get("text")) if link else None
+
+
+def _dj_commentary_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    link = _find_last_message(data, "segment", "link") or {}
+    pick = _find_last_message(data, "dj", "pick") or {}
+    pick_meta = pick.get("meta") or {}
+    return {
+        "full_text": link.get("text"),
+        "timestamp": link.get("t"),
+        "pick_reasoning": pick.get("text"),
+        "pick_track": pick_meta.get("title"),
+        "pick_artist": pick_meta.get("artist"),
+    }
+
+
+def _session_value(data: dict[str, Any]) -> str:
+    return _get(data, "sessionLog", "session", "kind", default="unknown")
+
+
+def _session_attrs(data: dict[str, Any]) -> dict[str, Any]:
+    session = _get(data, "sessionLog", "session", default={}) or {}
+    messages = _get(data, "sessionLog", "messages", default=[]) or []
+    scenario_events = [
+        m.get("text") for m in messages if m.get("role") == "event" and m.get("kind") == "scenario"
+    ]
+    return {
+        "id": session.get("id"),
+        "key": session.get("key"),
+        "show": session.get("show"),
+        "started_at": session.get("startedAt"),
+        "recent_scenario_events": scenario_events[-5:],
+    }
 
 
 SENSOR_DESCRIPTIONS: tuple[SubWaveSensorDescription, ...] = (
@@ -63,6 +178,9 @@ SENSOR_DESCRIPTIONS: tuple[SubWaveSensorDescription, ...] = (
             "bpm": _get(d, "nowPlaying", "bpm"),
             "musical_key": _get(d, "nowPlaying", "musicalKey"),
             "year": _get(d, "nowPlaying", "year"),
+            "requested_by": _get(d, "queueState", "current", "requestedBy"),
+            "source": _get(d, "queueState", "current", "source"),
+            "started_at": _get(d, "queueState", "current", "startedAt"),
         },
     ),
     SubWaveSensorDescription(
@@ -107,6 +225,41 @@ SENSOR_DESCRIPTIONS: tuple[SubWaveSensorDescription, ...] = (
         native_unit_of_measurement="tokens",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda d: _get(d, "llmTokens", default=0),
+    ),
+    SubWaveSensorDescription(
+        key="up_next",
+        translation_key="up_next",
+        icon="mdi:playlist-music",
+        value_fn=_up_next_title,
+        attrs_fn=_up_next_attrs,
+    ),
+    SubWaveSensorDescription(
+        key="last_request",
+        translation_key="last_request",
+        icon="mdi:account-heart",
+        value_fn=_last_request_name,
+        attrs_fn=_last_request_attrs,
+    ),
+    SubWaveSensorDescription(
+        key="dj_activity",
+        translation_key="dj_activity",
+        icon="mdi:message-text-outline",
+        value_fn=_dj_activity_message,
+        attrs_fn=_dj_activity_attrs,
+    ),
+    SubWaveSensorDescription(
+        key="dj_commentary",
+        translation_key="dj_commentary",
+        icon="mdi:comment-quote-outline",
+        value_fn=_dj_commentary_value,
+        attrs_fn=_dj_commentary_attrs,
+    ),
+    SubWaveSensorDescription(
+        key="session",
+        translation_key="session",
+        icon="mdi:timeline-clock-outline",
+        value_fn=_session_value,
+        attrs_fn=_session_attrs,
     ),
 )
 

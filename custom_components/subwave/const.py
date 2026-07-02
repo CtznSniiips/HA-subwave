@@ -14,6 +14,8 @@ MIN_SCAN_INTERVAL = 5
 MAX_SCAN_INTERVAL = 120
 
 API_NOW_PLAYING = "/api/now-playing"
+API_STATE = "/api/state"
+API_SESSION = "/api/session"
 
 # Maps stream format key -> file name served by SUB/WAVE
 STREAM_FORMATS = {
