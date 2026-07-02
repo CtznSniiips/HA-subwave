@@ -40,7 +40,8 @@
       "last_request": { "name": "Last Request" },
       "dj_activity": { "name": "DJ Activity" },
       "dj_commentary": { "name": "DJ Commentary" },
-      "session": { "name": "Session" }
+      "session": { "name": "Session" },
+      "broadcast_status": { "name": "Broadcast Status" }
     },
     "binary_sensor": {
       "stream_online": { "name": "Stream Online" },

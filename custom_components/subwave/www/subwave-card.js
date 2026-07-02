@@ -11,6 +11,209 @@
 const CARD_TAG = "subwave-card";
 const EDITOR_TAG = "subwave-card-editor";
 
+const LAYOUTS = ["compact", "hero", "retro", "editorial"];
+const LAYOUT_LABELS = {
+  compact: "Compact",
+  hero: "Hero art",
+  retro: "Retro FM",
+  editorial: "Editorial",
+};
+const LAYOUT_BASE_SIZE = { compact: 3, hero: 6, retro: 4, editorial: 5 };
+
+// Shared across every layout: the power button (outline circle, grey glyph
+// when off, red when on/playing - matching the native SUB/WAVE player) and
+// the request form.
+const COMMON_STYLE = `
+  <style>
+    .subwave-card { padding: 12px 16px 16px; }
+    .pwr-btn {
+      background: transparent;
+      border: 2px solid var(--primary-text-color);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; padding: 0; flex-shrink: 0;
+    }
+    .pwr-btn:disabled { opacity: 0.4; cursor: default; }
+    .pwr-icon { color: var(--secondary-text-color); }
+    .pwr-btn[aria-pressed="true"] .pwr-icon { color: var(--error-color, #db4437); }
+    .request-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .request-form input[type="text"] {
+      flex: 1; min-width: 100px; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid var(--divider-color); background: var(--card-background-color);
+      color: var(--primary-text-color); font: inherit;
+    }
+    .req-submit {
+      padding: 8px 14px; border-radius: 8px; border: none;
+      background: var(--primary-color); color: white; cursor: pointer; font: inherit;
+    }
+    .req-submit:disabled { opacity: 0.5; cursor: default; }
+    .feedback { font-size: 0.8rem; margin-top: 6px; min-height: 1em; }
+    .feedback.error { color: var(--error-color, #db4437); }
+    .feedback.ok { color: var(--success-color, #43a047); }
+  </style>
+`;
+
+const REQUEST_FORM_HTML = `
+  <form class="request-form">
+    <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
+    <input type="text" class="req-name" placeholder="Your name (optional)" maxlength="60" />
+    <button type="submit" class="req-submit">Send</button>
+  </form>
+  <div class="feedback"></div>
+`;
+
+const POWER_BTN_HTML = `
+  <button class="pwr-btn" type="button" aria-label="Power" aria-pressed="false">
+    <ha-icon class="pwr-icon" icon="mdi:power"></ha-icon>
+  </button>
+`;
+
+function layoutTemplate(layout, config) {
+  const requestBlock = config.show_requests ? REQUEST_FORM_HTML : "";
+
+  if (layout === "hero") {
+    return `
+      <ha-card>
+        <div class="subwave-card layout-hero">
+          <div class="art-wrap"><img class="art" alt="" /></div>
+          <div class="title">—</div>
+          <div class="artist"></div>
+          <div class="subline"></div>
+          ${POWER_BTN_HTML}
+          ${requestBlock}
+        </div>
+        ${COMMON_STYLE}
+        <style>
+          .layout-hero { text-align: center; }
+          .layout-hero .art-wrap {
+            width: 100%; max-width: 220px; margin: 0 auto 12px; aspect-ratio: 1 / 1;
+            border-radius: 12px; overflow: hidden; background: var(--divider-color);
+          }
+          .layout-hero .art { width: 100%; height: 100%; object-fit: cover; }
+          .layout-hero .title { font-weight: 500; font-size: 1.05rem; }
+          .layout-hero .artist { font-size: 0.85rem; color: var(--secondary-text-color); margin-top: 2px; }
+          .layout-hero .subline {
+            font-size: 0.75rem; color: var(--secondary-text-color); opacity: 0.8; margin-top: 4px; min-height: 1em;
+          }
+          .layout-hero .pwr-btn { width: 56px; height: 56px; margin: 14px auto 0; }
+          .layout-hero .pwr-icon { --mdc-icon-size: 26px; }
+          .layout-hero .request-form { max-width: 320px; margin-left: auto; margin-right: auto; }
+        </style>
+      `;
+  }
+
+  if (layout === "retro") {
+    return `
+      <ha-card>
+        <div class="subwave-card layout-retro">
+          <div class="top-row">
+            <span class="badge"></span>
+            <span class="freq"></span>
+          </div>
+          <div class="readout">
+            <div class="title">—</div>
+            <div class="artist"></div>
+          </div>
+          <div class="controls">
+            ${POWER_BTN_HTML}
+            <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
+          </div>
+          ${requestBlock}
+        </div>
+        ${COMMON_STYLE}
+        <style>
+          .layout-retro .top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+          .layout-retro .badge {
+            font-size: 0.7rem; font-weight: 500; letter-spacing: 0.5px;
+            background: var(--warning-color, #ff9800); color: #000;
+            padding: 3px 8px; border-radius: 6px; opacity: 0.85;
+          }
+          .layout-retro .freq { font-family: var(--code-font-family, monospace); font-size: 0.7rem; color: var(--secondary-text-color); }
+          .layout-retro .readout { background: var(--secondary-background-color, var(--card-background-color)); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+          .layout-retro .title {
+            font-family: var(--code-font-family, monospace); font-size: 0.85rem; letter-spacing: 0.5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;
+          }
+          .layout-retro .artist {
+            font-family: var(--code-font-family, monospace); font-size: 0.75rem; color: var(--secondary-text-color);
+            margin-top: 2px; text-transform: uppercase;
+          }
+          .layout-retro .controls { display: flex; align-items: center; gap: 12px; }
+          .layout-retro .pwr-btn { width: 44px; height: 44px; }
+          .layout-retro .volume { flex: 1; }
+        </style>
+      `;
+  }
+
+  if (layout === "editorial") {
+    return `
+      <ha-card>
+        <div class="subwave-card layout-editorial">
+          <div class="head-row">
+            <img class="art" alt="" />
+            <div class="meta">
+              <div class="title">—</div>
+              <div class="artist"></div>
+            </div>
+            ${POWER_BTN_HTML}
+          </div>
+          <p class="quote"></p>
+          ${requestBlock}
+        </div>
+        ${COMMON_STYLE}
+        <style>
+          .layout-editorial .head-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+          .layout-editorial .art { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--divider-color); flex-shrink: 0; }
+          .layout-editorial .meta { flex: 1; min-width: 0; }
+          .layout-editorial .title { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .layout-editorial .artist { font-size: 0.8rem; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .layout-editorial .pwr-btn { width: 36px; height: 36px; }
+          .layout-editorial .quote {
+            font-family: var(--paper-font-body1_-_font-family, Georgia, serif);
+            font-style: italic; font-size: 0.875rem; color: var(--secondary-text-color);
+            border-left: 2px solid var(--primary-color); border-radius: 0;
+            padding-left: 12px; margin: 0 0 4px; line-height: 1.6; display: none;
+          }
+        </style>
+      `;
+  }
+
+  // compact (default)
+  return `
+      <ha-card>
+        <div class="subwave-card layout-compact">
+          <div class="art-row">
+            <img class="art" alt="" />
+            <div class="meta">
+              <div class="title">—</div>
+              <div class="artist"></div>
+            </div>
+            <span class="listeners"></span>
+            ${POWER_BTN_HTML}
+          </div>
+          <div class="status-row">
+            <span class="subline"></span>
+            <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
+          </div>
+          ${requestBlock}
+        </div>
+        ${COMMON_STYLE}
+        <style>
+          .layout-compact .art-row { display: flex; align-items: center; gap: 12px; }
+          .layout-compact .art { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: var(--divider-color); flex-shrink: 0; }
+          .layout-compact .meta { flex: 1; min-width: 0; }
+          .layout-compact .title { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .layout-compact .artist { font-size: 0.8rem; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .layout-compact .listeners { font-size: 0.7rem; color: var(--secondary-text-color); white-space: nowrap; }
+          .layout-compact .pwr-btn { width: 32px; height: 32px; }
+          .layout-compact .pwr-icon { --mdc-icon-size: 16px; }
+          .layout-compact .status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; min-height: 20px; }
+          .layout-compact .subline { font-size: 0.75rem; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .layout-compact .volume { max-width: 100px; }
+        </style>
+      `;
+}
+
 class SubwaveCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement(EDITOR_TAG);
@@ -25,6 +228,7 @@ class SubwaveCard extends HTMLElement {
     return {
       type: `custom:${CARD_TAG}`,
       entity: entity || "",
+      layout: "compact",
       show_requests: true,
       show_dj: true,
     };
@@ -34,11 +238,22 @@ class SubwaveCard extends HTMLElement {
     if (!config.entity) {
       throw new Error("Please select a SUB/WAVE media player entity.");
     }
-    this._config = { show_requests: true, show_dj: true, ...config };
+    const layout = LAYOUTS.includes(config.layout) ? config.layout : "compact";
+    const rebuildNeeded =
+      !this._config ||
+      this._config.layout !== layout ||
+      this._config.show_requests !== (config.show_requests !== false);
+
+    this._config = { show_requests: true, show_dj: true, ...config, layout };
     this._requesterName = window.localStorage.getItem("subwave-card-name") || "";
-    this._playing = false;
+    this._playing = this._playing || false;
     this._sending = false;
-    this._buildDom();
+
+    if (rebuildNeeded || !this._built) {
+      this._buildDom();
+      this._built = true;
+    }
+    this._render();
   }
 
   set hass(hass) {
@@ -47,7 +262,9 @@ class SubwaveCard extends HTMLElement {
   }
 
   getCardSize() {
-    return this._config && this._config.show_requests ? 6 : 4;
+    if (!this._config) return 4;
+    const base = LAYOUT_BASE_SIZE[this._config.layout] || 4;
+    return base + (this._config.show_requests !== false ? 2 : 0);
   }
 
   connectedCallback() {
@@ -59,88 +276,24 @@ class SubwaveCard extends HTMLElement {
   }
 
   _buildDom() {
-    this.innerHTML = `
-      <ha-card>
-        <div class="subwave-card">
-          <div class="art-row">
-            <img class="art" alt="" />
-            <div class="meta">
-              <div class="title">—</div>
-              <div class="artist"></div>
-              <div class="dj"></div>
-            </div>
-            <button class="play-btn" type="button" title="Play">
-              <ha-icon icon="mdi:play"></ha-icon>
-            </button>
-          </div>
-          <div class="status-row">
-            <span class="listeners"></span>
-            <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
-          </div>
-          <form class="request-form">
-            <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
-            <input type="text" class="req-name" placeholder="Your name (optional)" maxlength="60" />
-            <button type="submit" class="req-submit">Send</button>
-          </form>
-          <div class="feedback"></div>
-        </div>
-      </ha-card>
-      <style>
-        .subwave-card { padding: 12px 16px 16px; }
-        .art-row { display: flex; align-items: center; gap: 12px; }
-        .art {
-          width: 56px; height: 56px; border-radius: 8px; object-fit: cover;
-          background: var(--divider-color); flex-shrink: 0;
-        }
-        .meta { flex: 1; min-width: 0; }
-        .title {
-          font-weight: 500; font-size: 1rem; color: var(--primary-text-color);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .artist {
-          font-size: 0.875rem; color: var(--secondary-text-color);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .dj { font-size: 0.75rem; color: var(--secondary-text-color); opacity: 0.8; margin-top: 2px; }
-        .play-btn {
-          background: var(--primary-color); border: none; border-radius: 50%;
-          width: 44px; height: 44px; display: flex; align-items: center;
-          justify-content: center; cursor: pointer; color: white; flex-shrink: 0;
-          padding: 0;
-        }
-        .play-btn ha-icon { --mdc-icon-size: 24px; }
-        .status-row {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-top: 10px; gap: 12px; min-height: 20px;
-        }
-        .listeners { font-size: 0.75rem; color: var(--secondary-text-color); }
-        .volume { flex: 1; max-width: 120px; }
-        .request-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-        .request-form input[type="text"] {
-          flex: 1; min-width: 100px; padding: 8px 10px; border-radius: 8px;
-          border: 1px solid var(--divider-color); background: var(--card-background-color);
-          color: var(--primary-text-color); font: inherit;
-        }
-        .req-submit {
-          padding: 8px 14px; border-radius: 8px; border: none;
-          background: var(--primary-color); color: white; cursor: pointer; font: inherit;
-        }
-        .req-submit:disabled { opacity: 0.5; cursor: default; }
-        .feedback { font-size: 0.8rem; margin-top: 6px; min-height: 1em; }
-        .feedback.error { color: var(--error-color, #db4437); }
-        .feedback.ok { color: var(--success-color, #43a047); }
-      </style>
-    `;
+    this.innerHTML = layoutTemplate(this._config.layout, this._config);
+    this._collectEls();
+    this._wireEvents();
+  }
 
+  _collectEls() {
     this._els = {
       card: this.querySelector("ha-card"),
       art: this.querySelector(".art"),
       title: this.querySelector(".title"),
       artist: this.querySelector(".artist"),
-      dj: this.querySelector(".dj"),
-      playBtn: this.querySelector(".play-btn"),
-      playIcon: this.querySelector(".play-btn ha-icon"),
+      subline: this.querySelector(".subline"),
+      quote: this.querySelector(".quote"),
       listeners: this.querySelector(".listeners"),
+      badge: this.querySelector(".badge"),
+      freq: this.querySelector(".freq"),
+      pwrBtn: this.querySelector(".pwr-btn"),
+      pwrIcon: this.querySelector(".pwr-icon"),
       volume: this.querySelector(".volume"),
       form: this.querySelector(".request-form"),
       reqText: this.querySelector(".req-text"),
@@ -148,26 +301,34 @@ class SubwaveCard extends HTMLElement {
       reqSubmit: this.querySelector(".req-submit"),
       feedback: this.querySelector(".feedback"),
     };
+  }
 
-    this._els.playBtn.addEventListener("click", () => this._togglePlayback());
+  _wireEvents() {
+    const els = this._els;
 
-    this._els.volume.addEventListener("input", (event) => {
-      if (this._audio) this._audio.volume = parseFloat(event.target.value);
-    });
+    if (els.pwrBtn) {
+      els.pwrBtn.addEventListener("click", () => this._togglePlayback());
+    }
 
-    this._els.reqName.value = this._requesterName;
-    this._els.reqName.addEventListener("change", (event) => {
-      this._requesterName = event.target.value.trim();
-      window.localStorage.setItem("subwave-card-name", this._requesterName);
-    });
+    if (els.volume) {
+      els.volume.addEventListener("input", (event) => {
+        if (this._audio) this._audio.volume = parseFloat(event.target.value);
+      });
+    }
 
-    this._els.form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      this._sendRequest();
-    });
+    if (els.reqName) {
+      els.reqName.value = this._requesterName;
+      els.reqName.addEventListener("change", (event) => {
+        this._requesterName = event.target.value.trim();
+        window.localStorage.setItem("subwave-card-name", this._requesterName);
+      });
+    }
 
-    if (!this._config.show_requests) {
-      this._els.form.style.display = "none";
+    if (els.form) {
+      els.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        this._sendRequest();
+      });
     }
   }
 
@@ -175,49 +336,78 @@ class SubwaveCard extends HTMLElement {
     if (!this._hass || !this._config || !this._els) return;
 
     const stateObj = this._hass.states[this._config.entity];
-    this._els.card.header = this._config.title || undefined;
+    if (this._els.card) this._els.card.header = this._config.title || undefined;
 
     if (!stateObj) {
-      this._els.title.textContent = "Entity not found";
-      this._els.artist.textContent = this._config.entity;
+      if (this._els.title) this._els.title.textContent = "Entity not found";
+      if (this._els.artist) this._els.artist.textContent = this._config.entity;
       return;
     }
 
     const attrs = stateObj.attributes;
 
-    if (attrs.entity_picture) {
-      this._els.art.src = attrs.entity_picture;
-      this._els.art.style.visibility = "visible";
-    } else {
-      this._els.art.style.visibility = "hidden";
+    if (this._els.art) {
+      if (attrs.entity_picture) {
+        this._els.art.src = attrs.entity_picture;
+        this._els.art.style.visibility = "visible";
+      } else {
+        this._els.art.style.visibility = "hidden";
+      }
     }
 
-    this._els.title.textContent = attrs.media_title || "Nothing playing";
-    this._els.artist.textContent = [attrs.media_artist, attrs.media_album_name]
-      .filter(Boolean)
-      .join(" — ");
-
-    if (this._config.show_dj && (attrs.dj_name || attrs.dj_tagline)) {
-      this._els.dj.textContent = [attrs.dj_name, attrs.dj_tagline].filter(Boolean).join(" · ");
-      this._els.dj.style.display = "";
-    } else {
-      this._els.dj.style.display = "none";
+    if (this._els.title) this._els.title.textContent = attrs.media_title || "Nothing playing";
+    if (this._els.artist) {
+      this._els.artist.textContent = [attrs.media_artist, attrs.media_album_name]
+        .filter(Boolean)
+        .join(" — ");
     }
 
-    const listeners = attrs.listeners_current;
-    this._els.listeners.textContent =
-      listeners === undefined || listeners === null
-        ? ""
-        : `${listeners} listening${listeners === 1 ? "" : "s"}`;
+    const listenersCount = attrs.listeners_current;
+    const listenersText =
+      listenersCount === undefined || listenersCount === null
+        ? null
+        : `${listenersCount} listening${listenersCount === 1 ? "" : "s"}`;
 
-    this._els.playIcon.setAttribute("icon", this._playing ? "mdi:stop" : "mdi:play");
-    this._els.playBtn.title = this._playing ? "Stop" : "Play";
+    if (this._els.listeners) this._els.listeners.textContent = listenersText || "";
+
+    if (this._els.subline) {
+      const parts = [];
+      if (this._config.show_dj && (attrs.dj_name || attrs.dj_tagline)) {
+        parts.push([attrs.dj_name, attrs.dj_tagline].filter(Boolean).join(" · "));
+      }
+      if (listenersText) parts.push(listenersText);
+      this._els.subline.textContent = parts.join(" · ");
+    }
+
+    if (this._els.quote) {
+      const text = attrs.dj_commentary || attrs.dj_tagline;
+      if (text) {
+        this._els.quote.textContent = `"${text}"${attrs.dj_name ? ` — ${attrs.dj_name}` : ""}`;
+        this._els.quote.style.display = "";
+      } else {
+        this._els.quote.style.display = "none";
+      }
+    }
+
+    if (this._els.badge) {
+      this._els.badge.textContent = stateObj.state === "off" ? "OFFLINE" : "ON AIR";
+    }
+    if (this._els.freq) {
+      this._els.freq.textContent = attrs.app_name || attrs.friendly_name || "";
+    }
 
     this._streamUrl = attrs.proxy_stream_url || attrs.stream_url || null;
     this._requestsEndpoint = attrs.requests_endpoint || null;
 
-    this._els.playBtn.disabled = !this._streamUrl;
-    this._els.reqSubmit.disabled = this._sending || !this._requestsEndpoint;
+    if (this._els.pwrBtn) {
+      this._els.pwrBtn.disabled = !this._streamUrl;
+      this._els.pwrBtn.setAttribute("aria-pressed", String(this._playing));
+      this._els.pwrBtn.title = this._playing ? "Turn off" : "Turn on";
+    }
+
+    if (this._els.reqSubmit) {
+      this._els.reqSubmit.disabled = this._sending || !this._requestsEndpoint;
+    }
   }
 
   _togglePlayback() {
@@ -232,15 +422,15 @@ class SubwaveCard extends HTMLElement {
     if (!this._streamUrl) return;
     if (!this._audio) {
       this._audio = new Audio();
-      this._audio.volume = parseFloat(this._els.volume.value || "1");
+      this._audio.volume = this._els.volume ? parseFloat(this._els.volume.value || "1") : 1;
       this._audio.addEventListener("error", () => {
         this._showFeedback("Playback error - stream may be offline.", true);
         this._playing = false;
         this._render();
       });
     }
-    // Set a fresh src (with a cache-busting param) each time we start, so
-    // we join at the live edge instead of resuming a stale paused buffer.
+    // Fresh src (with a cache-busting param) each time we power on, so we
+    // join at the live edge instead of resuming a stale paused buffer.
     const sep = this._streamUrl.includes("?") ? "&" : "?";
     this._audio.src = `${this._streamUrl}${sep}_=${Date.now()}`;
     this._audio.play().catch(() => {
@@ -261,6 +451,7 @@ class SubwaveCard extends HTMLElement {
   }
 
   async _sendRequest() {
+    if (!this._els.reqText) return;
     const text = this._els.reqText.value.trim();
     if (!text || !this._requestsEndpoint || this._sending) return;
 
@@ -284,20 +475,21 @@ class SubwaveCard extends HTMLElement {
   }
 
   _showFeedback(message, isError, isOk) {
-    if (!this._els) return;
+    if (!this._els || !this._els.feedback) return;
     this._els.feedback.textContent = message;
     this._els.feedback.classList.toggle("error", !!isError);
     this._els.feedback.classList.toggle("ok", !!isOk);
     if (this._feedbackTimer) clearTimeout(this._feedbackTimer);
     this._feedbackTimer = setTimeout(() => {
-      if (this._els) this._els.feedback.textContent = "";
+      if (this._els && this._els.feedback) this._els.feedback.textContent = "";
     }, 4000);
   }
 }
 
 class SubwaveCardEditor extends HTMLElement {
   setConfig(config) {
-    this._config = { show_requests: true, show_dj: true, ...config };
+    const layout = LAYOUTS.includes(config.layout) ? config.layout : "compact";
+    this._config = { show_requests: true, show_dj: true, ...config, layout };
     this._render();
   }
 
@@ -315,8 +507,20 @@ class SubwaveCardEditor extends HTMLElement {
           .subwave-editor { display: flex; flex-direction: column; gap: 16px; padding: 8px 0; }
           .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
           .row label { color: var(--primary-text-color); }
+          .layout-field label {
+            display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 4px;
+          }
+          .layout-field select {
+            width: 100%; height: 40px; padding: 0 10px; border-radius: 8px;
+            border: 1px solid var(--divider-color); background: var(--card-background-color);
+            color: var(--primary-text-color); font: inherit;
+          }
         </style>
         <div class="subwave-editor">
+          <div class="layout-field">
+            <label for="subwave-layout-select">Layout</label>
+            <select id="subwave-layout-select" class="layout-select"></select>
+          </div>
           <div class="entity-slot"></div>
           <ha-textfield class="title-field" label="Card title (optional)"></ha-textfield>
           <div class="row">
@@ -329,6 +533,17 @@ class SubwaveCardEditor extends HTMLElement {
           </div>
         </div>
       `;
+
+      this._layoutSelect = this.querySelector(".layout-select");
+      LAYOUTS.forEach((key) => {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = LAYOUT_LABELS[key] || key;
+        this._layoutSelect.appendChild(opt);
+      });
+      this._layoutSelect.addEventListener("change", (event) => {
+        this._updateConfig({ layout: event.target.value });
+      });
 
       this._picker = document.createElement("ha-entity-picker");
       this._picker.hass = this._hass;
@@ -357,6 +572,7 @@ class SubwaveCardEditor extends HTMLElement {
       this._built = true;
     }
 
+    this._layoutSelect.value = this._config.layout;
     this._picker.hass = this._hass;
     this._picker.value = this._config.entity || "";
     this._titleField.value = this._config.title || "";

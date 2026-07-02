@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import SubWaveCoordinator
 from .entity import SubWaveEntity
-from .util import get_nested as _get
+from .util import find_last_message, get_nested as _get, truncate
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -98,31 +98,14 @@ def _dj_activity_attrs(data: dict[str, Any]) -> dict[str, Any]:
 _MAX_STATE_LENGTH = 255
 
 
-def _truncate(text: str | None) -> str | None:
-    if text is None:
-        return None
-    if len(text) <= _MAX_STATE_LENGTH:
-        return text
-    return text[: _MAX_STATE_LENGTH - 1] + "…"
-
-
-def _find_last_message(data: dict[str, Any], role: str, kind: str) -> dict[str, Any] | None:
-    """Session messages are chronological (oldest first) - scan from the end."""
-    messages = _get(data, "sessionLog", "messages", default=[]) or []
-    for msg in reversed(messages):
-        if msg.get("role") == role and msg.get("kind") == kind:
-            return msg
-    return None
-
-
 def _dj_commentary_value(data: dict[str, Any]) -> str | None:
-    link = _find_last_message(data, "segment", "link")
-    return _truncate(link.get("text")) if link else None
+    link = find_last_message(data, "segment", "link")
+    return truncate(link.get("text")) if link else None
 
 
 def _dj_commentary_attrs(data: dict[str, Any]) -> dict[str, Any]:
-    link = _find_last_message(data, "segment", "link") or {}
-    pick = _find_last_message(data, "dj", "pick") or {}
+    link = find_last_message(data, "segment", "link") or {}
+    pick = find_last_message(data, "dj", "pick") or {}
     pick_meta = pick.get("meta") or {}
     return {
         "full_text": link.get("text"),
@@ -260,6 +243,12 @@ SENSOR_DESCRIPTIONS: tuple[SubWaveSensorDescription, ...] = (
         icon="mdi:timeline-clock-outline",
         value_fn=_session_value,
         attrs_fn=_session_attrs,
+    ),
+    SubWaveSensorDescription(
+        key="broadcast_status",
+        translation_key="broadcast_status",
+        icon="mdi:radio-tower",
+        value_fn=lambda d: _get(d, "health", "status", default="unknown"),
     ),
 )
 

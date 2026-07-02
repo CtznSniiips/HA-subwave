@@ -11,7 +11,7 @@ For each configured SUB/WAVE server you get one device with:
 
 | Entity | Type | Notes |
 |---|---|---|
-| `media_player.<station>` | Media Player | State reflects `streamOnline`/listener count. Title/artist/album/cover art come from `nowPlaying`. Album art is fetched from `/api/cover/<subsonic_id>` and proxied through HA's own media-image endpoint (works remotely). Supports `browse_media` to list available stream formats (mp3/opus/flac/aac) as playable URLs — hand one to a real speaker via `media_player.play_media`. |
+| `media_player.<station>` | Media Player | State reflects `streamOnline`/listener count. Title/artist/album/cover art come from `nowPlaying`. Album art is fetched from `/api/cover/<subsonic_id>` and proxied through HA's own media-image endpoint (works remotely). Carries a `dj_commentary` attribute (the DJ's latest spoken link, from `/api/session`) used by the card's editorial layout. Supports `browse_media` to list available stream formats (mp3/opus/flac/aac) as playable URLs — hand one to a real speaker via `media_player.play_media`. |
 | `sensor.<station>_dj` | Sensor | Current AI DJ name; tagline/station/avatar as attributes |
 | `sensor.<station>_now_playing` | Sensor | Track title; artist/album/genre/moods/energy/bpm/year as attributes |
 | `sensor.<station>_listeners` | Sensor | Current listener count; peak as attribute |
@@ -24,6 +24,7 @@ For each configured SUB/WAVE server you get one device with:
 | `sensor.<station>_dj_activity` | Sensor | Latest DJ log line (track changes, scheduler events, skill runs); last 10 entries as an attribute |
 | `sensor.<station>_dj_commentary` | Sensor | The DJ's most recent spoken link/transition (truncated to 255 chars for the state; full text always in the `full_text` attribute). Also carries the DJ's track-pick reasoning as attributes |
 | `sensor.<station>_session` | Sensor | Current autonomous session's kind (e.g. `auto`); id/key/show/started_at plus the last 5 scenario/mood-shift events as attributes |
+| `sensor.<station>_broadcast_status` | Sensor | SUB/WAVE's own reported status (e.g. `on-air`) from the lightweight `/api/health` check |
 | `binary_sensor.<station>_needs_setup` | Binary Sensor | Diagnostic; true if SUB/WAVE is flagging it needs attention. Also carries `auto_pick`/`auto_link`/`picker_busy` as attributes |
 
 ## Installation (HACS)
@@ -61,6 +62,7 @@ endpoint go blank.
   spoken commentary between tracks, its reasoning for each track pick,
   and scenario/mood-shift events (`sensor.<station>_dj_commentary`,
   `sensor.<station>_session`).
+- **`/api/health`** - a lightweight status check (`sensor.<station>_broadcast_status`).
 
 This is the natural hook for anything reacting to listener shoutouts or
 requests - e.g. an automation on `sensor.<station>_last_request` changing
@@ -86,20 +88,35 @@ listener request form. It's registered automatically as a frontend module
 when the integration loads, so there's no manual step in Settings →
 Dashboards → Resources.
 
+**Layouts**: the card ships with four selectable layouts:
+
+| Layout | Feel |
+|---|---|
+| `compact` (default) | Single-row tile - art thumbnail, title/artist, listener count, power button. Smallest footprint. |
+| `hero` | Large centered album art, big power button, everything stacked and centered. |
+| `retro` | Monospace "LED readout" track display, an ON AIR / OFFLINE badge, volume slider next to the power button. |
+| `editorial` | Compact header row plus the DJ's actual spoken commentary (`dj_commentary`) shown as a serif pull-quote. |
+
 **Adding it:** Edit a dashboard → Add Card → search "SUB/WAVE Radio", or
 add it via YAML:
 
 ```yaml
 type: custom:subwave-card
 entity: media_player.weird_music_radio   # your SUB/WAVE media_player entity
+layout: hero                              # optional - compact | hero | retro | editorial (default compact)
 title: Weird Music Radio                  # optional - defaults to no header
 show_requests: true                       # optional - default true
 show_dj: true                             # optional - default true
 ```
 
-The entity picker, title field, and both toggles are also configurable
-through the card's own UI editor (click the pencil icon after adding it) -
-no YAML required.
+The layout picker, entity picker, title field, and both toggles are also
+configurable through the card's own UI editor (click the pencil icon
+after adding it) - no YAML required. Changing the layout in the editor
+rebuilds the card's DOM immediately so you can compare options live.
+
+The power button matches SUB/WAVE's own native player styling: an outline
+circle (no fill) with a grey glyph when off and a red glyph when playing,
+using `mdi:power` throughout rather than swapping icons.
 
 **Playback**: the card plays the stream directly in the browser tab via
 an embedded `<audio>` element pointed at the HA-proxied stream URL (see

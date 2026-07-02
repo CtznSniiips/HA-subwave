@@ -25,6 +25,7 @@ from .const import DOMAIN, STREAM_FORMATS
 from .coordinator import SubWaveCoordinator
 from .entity import SubWaveEntity
 from .http import get_proxy_stream_url
+from .util import find_last_message, truncate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,6 +127,13 @@ class SubWaveMediaPlayer(SubWaveEntity, MediaPlayerEntity):
             _LOGGER.debug("Failed to fetch SUB/WAVE artwork from %s", url)
             return None, None
 
+    @staticmethod
+    def _dj_commentary(data: dict[str, Any]) -> str | None:
+        """The DJ's most recent spoken link, from /api/session - lets the
+        card's editorial layout show it without needing a second entity."""
+        link = find_last_message(data, "segment", "link")
+        return truncate(link.get("text")) if link else None
+
     @property
     def app_name(self) -> str | None:
         dj = (self.coordinator.data or {}).get("dj") or {}
@@ -155,6 +163,7 @@ class SubWaveMediaPlayer(SubWaveEntity, MediaPlayerEntity):
             "queue_length": len(upcoming),
             "dj_name": dj.get("name"),
             "dj_tagline": dj.get("tagline"),
+            "dj_commentary": self._dj_commentary(data),
             "genre": now_playing.get("genre"),
             "moods": now_playing.get("moods"),
             "energy": now_playing.get("energy"),
