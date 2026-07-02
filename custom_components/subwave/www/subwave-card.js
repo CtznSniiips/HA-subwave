@@ -11,21 +11,20 @@
 const CARD_TAG = "subwave-card";
 const EDITOR_TAG = "subwave-card-editor";
 
-const LAYOUTS = ["compact", "hero", "retro", "editorial"];
+const LAYOUTS = ["compact", "hero", "retro"];
 const LAYOUT_LABELS = {
   compact: "Compact",
   hero: "Hero art",
   retro: "Retro FM",
-  editorial: "Editorial",
 };
-const LAYOUT_BASE_SIZE = { compact: 3, hero: 6, retro: 4, editorial: 5 };
+const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4 };
 
 // Shared across every layout: the power button (outline circle, grey glyph
 // when off, red when on/playing - matching the native SUB/WAVE player) and
 // the request form.
 const COMMON_STYLE = `
   <style>
-    .subwave-card { padding: 12px 16px 16px; }
+    .subwave-card { padding: 16px; }
     .pwr-btn {
       background: transparent;
       border: 1px solid var(--primary-text-color);
@@ -69,7 +68,7 @@ const COMMON_STYLE = `
     }
     .volume::-moz-range-track {
       height: 2px;
-      background: var(--divider-color);
+      background: transparent;
       border-radius: 2px;
     }
     .volume::-moz-range-thumb {
@@ -109,6 +108,7 @@ function layoutTemplate(layout, config) {
           <div class="artist"></div>
           <div class="subline"></div>
           ${POWER_BTN_HTML}
+          <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
           ${requestBlock}
         </div>
         ${COMMON_STYLE}
@@ -126,6 +126,7 @@ function layoutTemplate(layout, config) {
           }
           .layout-hero .pwr-btn { width: 56px; height: 56px; margin: 14px auto 0; }
           .layout-hero .pwr-icon { --mdc-icon-size: 26px; }
+          .layout-hero .volume { display: block; width: 60%; max-width: 200px; margin: 10px auto 0; }
           .layout-hero .request-form { max-width: 320px; margin-left: auto; margin-right: auto; }
         </style>
       `;
@@ -175,39 +176,6 @@ function layoutTemplate(layout, config) {
           .layout-retro .controls { display: flex; align-items: center; gap: 12px; }
           .layout-retro .pwr-btn { width: 44px; height: 44px; }
           .layout-retro .volume { flex: 1; }
-        </style>
-      `;
-  }
-
-  if (layout === "editorial") {
-    return `
-      <ha-card>
-        <div class="subwave-card layout-editorial">
-          <div class="head-row">
-            <img class="art" alt="" />
-            <div class="meta">
-              <div class="title">—</div>
-              <div class="artist"></div>
-            </div>
-            ${POWER_BTN_HTML}
-          </div>
-          <p class="quote"></p>
-          ${requestBlock}
-        </div>
-        ${COMMON_STYLE}
-        <style>
-          .layout-editorial .head-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-          .layout-editorial .art { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--divider-color); flex-shrink: 0; }
-          .layout-editorial .meta { flex: 1; min-width: 0; }
-          .layout-editorial .title { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .layout-editorial .artist { font-size: 0.8rem; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .layout-editorial .pwr-btn { width: 36px; height: 36px; }
-          .layout-editorial .quote {
-            font-family: var(--paper-font-body1_-_font-family, Georgia, serif);
-            font-style: italic; font-size: 0.875rem; color: var(--secondary-text-color);
-            border-left: 2px solid var(--primary-color); border-radius: 0;
-            padding-left: 12px; margin: 0 0 4px; line-height: 1.6; display: none;
-          }
         </style>
       `;
   }
@@ -298,7 +266,7 @@ class SubwaveCard extends HTMLElement {
   getCardSize() {
     if (!this._config) return 4;
     const base = LAYOUT_BASE_SIZE[this._config.layout] || 4;
-    return base + (this._config.show_requests !== false ? 2 : 0);
+    return base + (this._config.show_requests !== false ? 1 : 0);
   }
 
   connectedCallback() {
@@ -312,7 +280,19 @@ class SubwaveCard extends HTMLElement {
   _buildDom() {
     this.innerHTML = layoutTemplate(this._config.layout, this._config);
     this._collectEls();
+    if (this._els.volume && this._audio) {
+      this._els.volume.value = String(this._audio.volume);
+    }
     this._wireEvents();
+  }
+
+  _updateVolumeFill(el) {
+    if (!el) return;
+    const min = parseFloat(el.min || "0");
+    const max = parseFloat(el.max || "1");
+    const val = parseFloat(el.value || "0");
+    const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+    el.style.background = `linear-gradient(to right, var(--primary-color) 0%, var(--primary-color) ${pct}%, var(--divider-color) ${pct}%, var(--divider-color) 100%)`;
   }
 
   _collectEls() {
@@ -323,7 +303,6 @@ class SubwaveCard extends HTMLElement {
       artist: this.querySelector(".artist"),
       subline: this.querySelector(".subline"),
       djLine: this.querySelector(".dj-line"),
-      quote: this.querySelector(".quote"),
       listeners: this.querySelector(".listeners"),
       badge: this.querySelector(".badge"),
       freq: this.querySelector(".freq"),
@@ -346,8 +325,10 @@ class SubwaveCard extends HTMLElement {
     }
 
     if (els.volume) {
+      this._updateVolumeFill(els.volume);
       els.volume.addEventListener("input", (event) => {
         if (this._audio) this._audio.volume = parseFloat(event.target.value);
+        this._updateVolumeFill(event.target);
       });
     }
 
@@ -416,16 +397,6 @@ class SubwaveCard extends HTMLElement {
 
     if (this._els.djLine) {
       this._els.djLine.textContent = this._config.show_dj && attrs.dj_name ? attrs.dj_name : "";
-    }
-
-    if (this._els.quote) {
-      const text = this._config.show_dj ? attrs.dj_commentary || attrs.dj_tagline : null;
-      if (text) {
-        this._els.quote.textContent = `"${text}"${attrs.dj_name ? ` — ${attrs.dj_name}` : ""}`;
-        this._els.quote.style.display = "block";
-      } else {
-        this._els.quote.style.display = "none";
-      }
     }
 
     if (this._els.badge) {
