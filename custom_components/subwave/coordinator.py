@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import API_NOW_PLAYING, API_SESSION, API_STATE, DOMAIN
+from .const import API_NOW_PLAYING, API_REQUESTS, API_SESSION, API_STATE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +53,11 @@ class SubWaveCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def session_url(self) -> str:
         """Full URL of the session transcript endpoint (DJ commentary, scenario shifts)."""
         return f"{self.base_url}{API_SESSION}"
+
+    @property
+    def requests_url(self) -> str:
+        """Full URL of the listener-requests endpoint."""
+        return f"{self.base_url}{API_REQUESTS}"
 
     def stream_url(self, fmt: str = "mp3") -> str:
         """Return the stream URL for a given format (mp3/opus/flac/aac)."""

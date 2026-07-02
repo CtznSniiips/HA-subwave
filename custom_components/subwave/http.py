@@ -7,6 +7,8 @@ internet.
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 
 import aiohttp
@@ -88,6 +90,68 @@ class SubWaveStreamProxyView(HomeAssistantView):
             upstream.close()
 
         return response
+
+
+class SubWaveRequestProxyView(HomeAssistantView):
+    """Proxies POST /api/requests to SUB/WAVE for the Lovelace card.
+
+    Registered once for the whole HA instance at:
+        /api/subwave/{entry_id}/requests
+
+    Unlike the stream/image proxies, this performs a real write against
+    SUB/WAVE, so it keeps HA's normal authentication requirement (the
+    HomeAssistantView default). The Lovelace card calls this via
+    hass.callApi(), which already attaches the logged-in user's auth token -
+    so this also "just works" through Nabu Casa/a reverse proxy the same
+    way the rest of the frontend does, with no extra setup.
+    """
+
+    url = "/api/subwave/{entry_id}/requests"
+    name = "api:subwave:requests"
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def post(self, request: web.Request, entry_id: str) -> web.Response:
+        coordinators = self.hass.data.get(DOMAIN, {})
+        coordinator = coordinators.get(entry_id)
+        if coordinator is None:
+            return web.json_response({"error": "Unknown SUB/WAVE server"}, status=404)
+
+        try:
+            payload = await request.json()
+        except (ValueError, aiohttp.ContentTypeError):
+            return web.json_response({"error": "Invalid JSON body"}, status=400)
+
+        text = (payload or {}).get("text")
+        if not text or not isinstance(text, str):
+            return web.json_response({"error": '"text" is required'}, status=400)
+
+        body: dict[str, str] = {"text": text}
+        name = (payload or {}).get("name")
+        if name and isinstance(name, str):
+            body["name"] = name
+
+        session = async_get_clientsession(self.hass)
+        try:
+            async with asyncio.timeout(10):
+                async with session.post(coordinator.requests_url, json=body) as resp:
+                    raw = await resp.text()
+                    try:
+                        parsed = json.loads(raw) if raw else {}
+                    except ValueError:
+                        # SUB/WAVE didn't return JSON - still forward the
+                        # status code but wrap the text so callApi() (which
+                        # expects JSON) doesn't choke on it.
+                        parsed = {"raw": raw}
+                    return web.json_response(parsed, status=resp.status)
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            _LOGGER.warning(
+                "Failed to submit SUB/WAVE request to %s: %s",
+                coordinator.requests_url,
+                err,
+            )
+            return web.json_response({"error": "Could not reach SUB/WAVE"}, status=502)
 
 
 def get_proxy_stream_url(

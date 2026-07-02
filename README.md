@@ -78,6 +78,49 @@ pattern), so artwork shows up correctly in the frontend whether you're on
 the LAN or accessing HA remotely - no extra proxy setup needed for this
 part, it's built into `media_player.py`.
 
+## Lovelace card
+
+This integration bundles a custom card - `custom:subwave-card` - showing
+now playing/album art, in-browser play/stop, a volume slider, and a
+listener request form. It's registered automatically as a frontend module
+when the integration loads, so there's no manual step in Settings →
+Dashboards → Resources.
+
+**Adding it:** Edit a dashboard → Add Card → search "SUB/WAVE Radio", or
+add it via YAML:
+
+```yaml
+type: custom:subwave-card
+entity: media_player.weird_music_radio   # your SUB/WAVE media_player entity
+title: Weird Music Radio                  # optional - defaults to no header
+show_requests: true                       # optional - default true
+show_dj: true                             # optional - default true
+```
+
+The entity picker, title field, and both toggles are also configurable
+through the card's own UI editor (click the pencil icon after adding it) -
+no YAML required.
+
+**Playback**: the card plays the stream directly in the browser tab via
+an embedded `<audio>` element pointed at the HA-proxied stream URL (see
+[Remote access](#remote-access-stream-proxy) above) - so it works the same
+whether you're on the LAN or accessing HA remotely. This is separate from
+the `media_player.<station>` entity's own state, which reflects SUB/WAVE's
+broadcast status, not whether the card's local `<audio>` element happens
+to be playing in your browser right now. To cast to a real speaker instead
+of playing in-tab, use the entity's `browse_media` picker (see the
+[cast example](#example-cast-the-stream-to-a-speaker) above).
+
+**Requests**: submitting the form POSTs `{"text": ..., "name": ...}` to
+SUB/WAVE's `/api/requests`, via a Home Assistant proxy endpoint
+(`/api/subwave/<entry_id>/requests`) rather than hitting SUB/WAVE
+directly - this keeps it working through remote access and avoids
+cross-origin issues, the same way the stream/artwork proxies do. Unlike
+those, this endpoint requires normal HA authentication, since it's a
+write action; the card handles that automatically via `hass.callApi()`.
+The "Your name" field is remembered in the browser (`localStorage`) so
+repeat listeners don't have to retype it.
+
 ## Remote access (stream proxy)
 
 SUB/WAVE's own stream URLs (`http://192.168.x.x:7700/stream.mp3`) only work

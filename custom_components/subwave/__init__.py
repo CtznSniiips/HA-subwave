@@ -7,11 +7,12 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import SubWaveCoordinator
-from .http import SubWaveStreamProxyView
+from .frontend import async_register_frontend
+from .http import SubWaveRequestProxyView, SubWaveStreamProxyView
 
 PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SENSOR, Platform.BINARY_SENSOR]
 
-_VIEW_REGISTERED_KEY = f"{DOMAIN}_stream_proxy_registered"
+_HUB_REGISTERED_KEY = f"{DOMAIN}_hub_registered"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -25,12 +26,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # The stream proxy view is registered once for the whole HA instance
-    # (not per config entry) - it's keyed by entry_id in the URL, so all
-    # SUB/WAVE servers share it.
-    if not hass.data.get(_VIEW_REGISTERED_KEY):
+    # The HTTP views and frontend card are registered once for the whole HA
+    # instance (not per config entry) - the proxy views are keyed by
+    # entry_id in their URL, and the Lovelace card can point at any
+    # SUB/WAVE media_player entity, so all SUB/WAVE servers share these.
+    if not hass.data.get(_HUB_REGISTERED_KEY):
         hass.http.register_view(SubWaveStreamProxyView(hass))
-        hass.data[_VIEW_REGISTERED_KEY] = True
+        hass.http.register_view(SubWaveRequestProxyView(hass))
+        await async_register_frontend(hass)
+        hass.data[_HUB_REGISTERED_KEY] = True
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 

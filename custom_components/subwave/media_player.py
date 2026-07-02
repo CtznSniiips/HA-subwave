@@ -148,6 +148,7 @@ class SubWaveMediaPlayer(SubWaveEntity, MediaPlayerEntity):
             "stream_url": self.coordinator.stream_url("mp3"),
             "proxy_stream_url": get_proxy_stream_url(self.hass, self._entry_id, "mp3"),
             "cover_art_url": self._cover_art_url(),
+            "requests_endpoint": f"subwave/{self._entry_id}/requests",
             "requested_by": current.get("requestedBy"),
             "source": current.get("source"),
             "up_next": upcoming[0].get("title") if upcoming else None,
