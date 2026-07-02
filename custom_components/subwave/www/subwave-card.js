@@ -19,12 +19,20 @@ const LAYOUT_LABELS = {
 };
 const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4 };
 
+const REQUEST_MODES = ["hidden", "always", "toggle"];
+const REQUEST_MODE_LABELS = {
+  hidden: "Hidden",
+  always: "Always shown",
+  toggle: "Click card to show/hide",
+};
+
 // Shared across every layout: the power button (outline circle, grey glyph
 // when off, red when on/playing - matching the native SUB/WAVE player) and
 // the request form.
 const COMMON_STYLE = `
   <style>
     .subwave-card { padding: 16px; }
+    .subwave-card.requests-toggle { cursor: pointer; }
     .pwr-btn {
       background: transparent;
       border: 1px solid var(--primary-text-color);
@@ -46,9 +54,14 @@ const COMMON_STYLE = `
       background: var(--primary-color); color: white; cursor: pointer; font: inherit;
     }
     .req-submit:disabled { opacity: 0.5; cursor: default; }
-    .feedback { font-size: 0.8rem; margin-top: 6px; min-height: 1em; }
+    .feedback { font-size: 0.8rem; margin-top: 6px; display: none; }
+    .feedback.visible { display: block; }
     .feedback.error { color: var(--error-color, #db4437); }
     .feedback.ok { color: var(--success-color, #43a047); }
+    .request-hint {
+      font-size: 0.7rem; color: var(--secondary-text-color); text-align: center;
+      margin-top: 12px; opacity: 0.7;
+    }
     .volume {
       -webkit-appearance: none;
       appearance: none;
@@ -81,14 +94,24 @@ const COMMON_STYLE = `
   </style>
 `;
 
-const REQUEST_FORM_HTML = `
-  <form class="request-form">
-    <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
-    <input type="text" class="req-name" placeholder="Your name (optional)" maxlength="60" />
-    <button type="submit" class="req-submit">Send</button>
-  </form>
-  <div class="feedback"></div>
-`;
+function requestBlockHtml(config) {
+  if (config.requests_mode === "hidden") return "";
+  const formHtml = `
+    <form class="request-form">
+      <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
+      <input type="text" class="req-name" placeholder="Your name (optional)" maxlength="60" />
+      <button type="submit" class="req-submit">Send</button>
+    </form>
+    <div class="feedback"></div>
+  `;
+  if (config.requests_mode === "toggle") {
+    return `
+      <div class="request-hint">Tap the card to request a song</div>
+      <div class="request-wrap" style="display:none;">${formHtml}</div>
+    `;
+  }
+  return `<div class="request-wrap">${formHtml}</div>`;
+}
 
 const POWER_BTN_HTML = `
   <button class="pwr-btn" type="button" aria-label="Power" aria-pressed="false">
@@ -97,18 +120,19 @@ const POWER_BTN_HTML = `
 `;
 
 function layoutTemplate(layout, config) {
-  const requestBlock = config.show_requests ? REQUEST_FORM_HTML : "";
+  const requestBlock = requestBlockHtml(config);
+  const toggleClass = config.requests_mode === "toggle" ? " requests-toggle" : "";
 
   if (layout === "hero") {
     return `
       <ha-card>
-        <div class="subwave-card layout-hero">
+        <div class="subwave-card layout-hero${toggleClass}">
           <div class="art-wrap"><img class="art" alt="" /></div>
           <div class="title">—</div>
           <div class="artist"></div>
           <div class="subline"></div>
-          ${POWER_BTN_HTML}
           <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
+          ${POWER_BTN_HTML}
           ${requestBlock}
         </div>
         ${COMMON_STYLE}
@@ -124,9 +148,9 @@ function layoutTemplate(layout, config) {
           .layout-hero .subline {
             font-size: 0.75rem; color: var(--secondary-text-color); opacity: 0.8; margin-top: 4px; min-height: 1em;
           }
+          .layout-hero .volume { display: block; width: 60%; max-width: 200px; margin: 14px auto 0; }
           .layout-hero .pwr-btn { width: 56px; height: 56px; margin: 14px auto 0; }
           .layout-hero .pwr-icon { --mdc-icon-size: 26px; }
-          .layout-hero .volume { display: block; width: 60%; max-width: 200px; margin: 10px auto 0; }
           .layout-hero .request-form { max-width: 320px; margin-left: auto; margin-right: auto; }
         </style>
       `;
@@ -135,7 +159,7 @@ function layoutTemplate(layout, config) {
   if (layout === "retro") {
     return `
       <ha-card>
-        <div class="subwave-card layout-retro">
+        <div class="subwave-card layout-retro${toggleClass}">
           <div class="top-row">
             <span class="badge"></span>
             <span class="freq"></span>
@@ -183,7 +207,7 @@ function layoutTemplate(layout, config) {
   // compact (default)
   return `
       <ha-card>
-        <div class="subwave-card layout-compact">
+        <div class="subwave-card layout-compact${toggleClass}">
           <div class="art-row">
             <img class="art" alt="" />
             <div class="meta">
@@ -231,9 +255,15 @@ class SubwaveCard extends HTMLElement {
       type: `custom:${CARD_TAG}`,
       entity: entity || "",
       layout: "compact",
-      show_requests: true,
+      requests_mode: "always",
       show_dj: true,
     };
+  }
+
+  static _resolveRequestsMode(config) {
+    if (REQUEST_MODES.includes(config.requests_mode)) return config.requests_mode;
+    // Back-compat for configs saved before the always/toggle/hidden modes existed.
+    return config.show_requests === false ? "hidden" : "always";
   }
 
   setConfig(config) {
@@ -241,12 +271,13 @@ class SubwaveCard extends HTMLElement {
       throw new Error("Please select a SUB/WAVE media player entity.");
     }
     const layout = LAYOUTS.includes(config.layout) ? config.layout : "compact";
+    const requestsMode = SubwaveCard._resolveRequestsMode(config);
     const rebuildNeeded =
       !this._config ||
       this._config.layout !== layout ||
-      this._config.show_requests !== (config.show_requests !== false);
+      this._config.requests_mode !== requestsMode;
 
-    this._config = { show_requests: true, show_dj: true, ...config, layout };
+    this._config = { show_dj: true, ...config, layout, requests_mode: requestsMode };
     this._requesterName = window.localStorage.getItem("subwave-card-name") || "";
     this._playing = this._playing || false;
     this._sending = false;
@@ -266,7 +297,9 @@ class SubwaveCard extends HTMLElement {
   getCardSize() {
     if (!this._config) return 4;
     const base = LAYOUT_BASE_SIZE[this._config.layout] || 4;
-    return base + (this._config.show_requests !== false ? 1 : 0);
+    // "toggle" mode starts collapsed (just a one-line hint), so it doesn't
+    // need the same reserved space as a form that's always visible.
+    return base + (this._config.requests_mode === "always" ? 1 : 0);
   }
 
   connectedCallback() {
@@ -298,6 +331,7 @@ class SubwaveCard extends HTMLElement {
   _collectEls() {
     this._els = {
       card: this.querySelector("ha-card"),
+      cardBody: this.querySelector(".subwave-card"),
       art: this.querySelector(".art"),
       title: this.querySelector(".title"),
       artist: this.querySelector(".artist"),
@@ -309,6 +343,8 @@ class SubwaveCard extends HTMLElement {
       pwrBtn: this.querySelector(".pwr-btn"),
       pwrIcon: this.querySelector(".pwr-icon"),
       volume: this.querySelector(".volume"),
+      requestWrap: this.querySelector(".request-wrap"),
+      requestHint: this.querySelector(".request-hint"),
       form: this.querySelector(".request-form"),
       reqText: this.querySelector(".req-text"),
       reqName: this.querySelector(".req-name"),
@@ -345,6 +381,22 @@ class SubwaveCard extends HTMLElement {
         event.preventDefault();
         this._sendRequest();
       });
+    }
+
+    if (this._config.requests_mode === "toggle" && els.cardBody) {
+      els.cardBody.addEventListener("click", (event) => {
+        if (event.target.closest("input, button, a")) return;
+        this._toggleRequestForm();
+      });
+    }
+  }
+
+  _toggleRequestForm() {
+    if (!this._els.requestWrap) return;
+    const isOpen = this._els.requestWrap.style.display !== "none";
+    this._els.requestWrap.style.display = isOpen ? "none" : "block";
+    if (this._els.requestHint) {
+      this._els.requestHint.style.display = isOpen ? "block" : "none";
     }
   }
 
@@ -489,9 +541,13 @@ class SubwaveCard extends HTMLElement {
     this._els.feedback.textContent = message;
     this._els.feedback.classList.toggle("error", !!isError);
     this._els.feedback.classList.toggle("ok", !!isOk);
+    this._els.feedback.classList.add("visible");
     if (this._feedbackTimer) clearTimeout(this._feedbackTimer);
     this._feedbackTimer = setTimeout(() => {
-      if (this._els && this._els.feedback) this._els.feedback.textContent = "";
+      if (this._els && this._els.feedback) {
+        this._els.feedback.textContent = "";
+        this._els.feedback.classList.remove("visible");
+      }
     }, 4000);
   }
 }
@@ -499,7 +555,8 @@ class SubwaveCard extends HTMLElement {
 class SubwaveCardEditor extends HTMLElement {
   setConfig(config) {
     const layout = LAYOUTS.includes(config.layout) ? config.layout : "compact";
-    this._config = { show_requests: true, show_dj: true, ...config, layout };
+    const requestsMode = SubwaveCard._resolveRequestsMode(config);
+    this._config = { show_dj: true, ...config, layout, requests_mode: requestsMode };
     this._render();
   }
 
@@ -533,9 +590,9 @@ class SubwaveCardEditor extends HTMLElement {
           </div>
           <div class="entity-slot"></div>
           <ha-textfield class="title-field" label="Card title (optional)"></ha-textfield>
-          <div class="row">
-            <label>Show request form</label>
-            <ha-switch class="show-requests"></ha-switch>
+          <div class="layout-field">
+            <label for="subwave-requests-select">Request form</label>
+            <select id="subwave-requests-select" class="requests-select"></select>
           </div>
           <div class="row">
             <label>Show DJ name/tagline</label>
@@ -569,9 +626,15 @@ class SubwaveCardEditor extends HTMLElement {
         this._updateConfig({ title: event.target.value || undefined });
       });
 
-      this._showRequests = this.querySelector(".show-requests");
-      this._showRequests.addEventListener("change", (event) => {
-        this._updateConfig({ show_requests: event.target.checked });
+      this._requestsSelect = this.querySelector(".requests-select");
+      REQUEST_MODES.forEach((key) => {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = REQUEST_MODE_LABELS[key] || key;
+        this._requestsSelect.appendChild(opt);
+      });
+      this._requestsSelect.addEventListener("change", (event) => {
+        this._updateConfig({ requests_mode: event.target.value, show_requests: undefined });
       });
 
       this._showDj = this.querySelector(".show-dj");
@@ -586,7 +649,7 @@ class SubwaveCardEditor extends HTMLElement {
     this._picker.hass = this._hass;
     this._picker.value = this._config.entity || "";
     this._titleField.value = this._config.title || "";
-    this._showRequests.checked = this._config.show_requests !== false;
+    this._requestsSelect.value = this._config.requests_mode;
     this._showDj.checked = this._config.show_dj !== false;
   }
 

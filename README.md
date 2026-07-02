@@ -104,14 +104,23 @@ type: custom:subwave-card
 entity: media_player.weird_music_radio   # your SUB/WAVE media_player entity
 layout: hero                              # optional - compact | hero | retro (default compact)
 title: Weird Music Radio                  # optional - defaults to no header
-show_requests: true                       # optional - default true
+requests_mode: always                     # optional - hidden | always | toggle (default always)
 show_dj: true                             # optional - default true
 ```
 
-The layout picker, entity picker, title field, and both toggles are also
-configurable through the card's own UI editor (click the pencil icon
-after adding it) - no YAML required. Changing the layout in the editor
-rebuilds the card's DOM immediately so you can compare options live.
+`requests_mode` controls the listener request form:
+- `hidden` - never shown
+- `always` (default) - always visible
+- `toggle` - hidden behind a "Tap the card to request a song" hint; click
+  anywhere on the card (outside the power button/volume/inputs) to
+  show/hide it. Useful for keeping the card compact day-to-day while still
+  making requests easy to find.
+
+The layout picker, entity picker, title field, request-form mode, and DJ
+toggle are all configurable through the card's own UI editor (click the
+pencil icon after adding it) - no YAML required. Changing the layout or
+request mode in the editor rebuilds the card's DOM immediately so you can
+compare options live.
 
 The power button matches SUB/WAVE's own native player styling: an outline
 circle (no fill) with a grey glyph when off and a red glyph when playing,
