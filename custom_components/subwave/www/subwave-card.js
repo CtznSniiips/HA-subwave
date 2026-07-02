@@ -151,34 +151,26 @@ function layoutTemplate(layout, config) {
     return `
       <ha-card>
         <div class="subwave-card layout-retro${toggleClass}">
-          <div class="main-row">
-            <div class="left-col">
-              <div class="top-row">
-                <span class="badge"></span>
-                <span class="freq"></span>
-              </div>
-              <div class="readout">
-                <div class="title">—</div>
-                <div class="artist"></div>
-                <div class="dj-line"></div>
-              </div>
-              <div class="controls">
-                ${POWER_BTN_HTML}
-                <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
-              </div>
+          <div class="top-row">
+            <span class="badge"></span>
+            <span class="freq"></span>
+          </div>
+          <div class="readout">
+            <div class="readout-text">
+              <div class="title">—</div>
+              <div class="artist"></div>
+              <div class="dj-line"></div>
             </div>
             <img class="art" alt="" />
+          </div>
+          <div class="controls">
+            ${POWER_BTN_HTML}
+            <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
           </div>
           ${requestBlock}
         </div>
         ${COMMON_STYLE}
         <style>
-          .layout-retro .main-row { display: flex; align-items: center; gap: 12px; }
-          .layout-retro .left-col { flex: 1; min-width: 0; }
-          .layout-retro .art {
-            width: 84px; height: 84px; border-radius: 8px; object-fit: cover;
-            background: var(--divider-color); flex-shrink: 0;
-          }
           .layout-retro .top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
           .layout-retro .badge {
             font-size: 0.7rem; font-weight: 500; letter-spacing: 0.5px;
@@ -186,14 +178,23 @@ function layoutTemplate(layout, config) {
             padding: 3px 8px; border-radius: 6px; opacity: 0.85;
           }
           .layout-retro .freq { font-family: var(--code-font-family, monospace); font-size: 0.7rem; color: var(--secondary-text-color); }
-          .layout-retro .readout { background: var(--secondary-background-color, var(--card-background-color)); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+          .layout-retro .readout {
+            background: var(--secondary-background-color, var(--card-background-color));
+            border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 12px;
+          }
+          .layout-retro .readout-text { flex: 1; min-width: 0; }
+          .layout-retro .art {
+            width: 56px; height: 56px; border-radius: 6px; object-fit: cover;
+            background: var(--divider-color); flex-shrink: 0;
+          }
           .layout-retro .title {
             font-family: var(--code-font-family, monospace); font-size: 0.85rem; letter-spacing: 0.5px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase;
           }
           .layout-retro .artist {
             font-family: var(--code-font-family, monospace); font-size: 0.75rem; color: var(--secondary-text-color);
-            margin-top: 2px; text-transform: uppercase;
+            margin-top: 2px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           }
           .layout-retro .dj-line {
             font-family: var(--code-font-family, monospace); font-size: 0.7rem; color: var(--secondary-text-color);
