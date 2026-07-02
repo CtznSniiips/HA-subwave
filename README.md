@@ -92,9 +92,9 @@ Dashboards → Resources.
 
 | Layout | Feel |
 |---|---|
-| `compact` (default) | Single-row tile - art thumbnail, title/artist, listener count, power button, volume slider. Smallest footprint. |
+| `compact` (default) | Single-row tile - art thumbnail, title/artist, station name, power button, volume slider, listener count. Smallest footprint. |
 | `hero` | Large centered album art, big power button, volume slider, everything stacked and centered. |
-| `retro` | Monospace "LED readout" track display, an ON AIR / OFFLINE badge, volume slider next to the power button. |
+| `retro` | Monospace "LED readout" track display, an ON AIR / OFFLINE badge, album art on the right, volume slider next to the power button. |
 
 **Adding it:** Edit a dashboard → Add Card → search "SUB/WAVE Radio", or
 add it via YAML:

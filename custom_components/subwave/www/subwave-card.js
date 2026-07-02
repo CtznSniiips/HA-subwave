@@ -151,23 +151,34 @@ function layoutTemplate(layout, config) {
     return `
       <ha-card>
         <div class="subwave-card layout-retro${toggleClass}">
-          <div class="top-row">
-            <span class="badge"></span>
-            <span class="freq"></span>
-          </div>
-          <div class="readout">
-            <div class="title">—</div>
-            <div class="artist"></div>
-            <div class="dj-line"></div>
-          </div>
-          <div class="controls">
-            ${POWER_BTN_HTML}
-            <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
+          <div class="main-row">
+            <div class="left-col">
+              <div class="top-row">
+                <span class="badge"></span>
+                <span class="freq"></span>
+              </div>
+              <div class="readout">
+                <div class="title">—</div>
+                <div class="artist"></div>
+                <div class="dj-line"></div>
+              </div>
+              <div class="controls">
+                ${POWER_BTN_HTML}
+                <input type="range" class="volume" min="0" max="1" step="0.05" value="1" title="Volume" />
+              </div>
+            </div>
+            <img class="art" alt="" />
           </div>
           ${requestBlock}
         </div>
         ${COMMON_STYLE}
         <style>
+          .layout-retro .main-row { display: flex; align-items: center; gap: 12px; }
+          .layout-retro .left-col { flex: 1; min-width: 0; }
+          .layout-retro .art {
+            width: 84px; height: 84px; border-radius: 8px; object-fit: cover;
+            background: var(--divider-color); flex-shrink: 0;
+          }
           .layout-retro .top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
           .layout-retro .badge {
             font-size: 0.7rem; font-weight: 500; letter-spacing: 0.5px;
@@ -205,7 +216,7 @@ function layoutTemplate(layout, config) {
               <div class="title">—</div>
               <div class="artist"></div>
             </div>
-            <span class="listeners"></span>
+            <span class="station-tag"></span>
             ${POWER_BTN_HTML}
           </div>
           <div class="status-row">
@@ -221,7 +232,7 @@ function layoutTemplate(layout, config) {
           .layout-compact .meta { flex: 1; min-width: 0; }
           .layout-compact .title { font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .layout-compact .artist { font-size: 0.8rem; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .layout-compact .listeners { font-size: 0.7rem; color: var(--secondary-text-color); white-space: nowrap; }
+          .layout-compact .station-tag { font-size: 0.7rem; color: var(--secondary-text-color); white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
           .layout-compact .pwr-btn { width: 32px; height: 32px; }
           .layout-compact .pwr-icon { --mdc-icon-size: 16px; }
           .layout-compact .status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; min-height: 20px; }
@@ -328,7 +339,7 @@ class SubwaveCard extends HTMLElement {
       artist: this.querySelector(".artist"),
       subline: this.querySelector(".subline"),
       djLine: this.querySelector(".dj-line"),
-      listeners: this.querySelector(".listeners"),
+      stationTag: this.querySelector(".station-tag"),
       badge: this.querySelector(".badge"),
       freq: this.querySelector(".freq"),
       pwrBtn: this.querySelector(".pwr-btn"),
@@ -423,7 +434,9 @@ class SubwaveCard extends HTMLElement {
         ? null
         : `${listenersCount} listening`;
 
-    if (this._els.listeners) this._els.listeners.textContent = listenersText || "";
+    if (this._els.stationTag) {
+      this._els.stationTag.textContent = attrs.app_name || attrs.friendly_name || "";
+    }
 
     if (this._els.subline) {
       const parts = [];
