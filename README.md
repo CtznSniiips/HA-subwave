@@ -1,4 +1,4 @@
-# SUB/WAVE for Home Assistant
+# <img src="/custom_components/subwave/brand/icon.png" height="60" /> SUB/WAVE for Home Assistant
 
 A HACS-compatible custom integration that connects Home Assistant to a
 [SUB/WAVE](https://github.com/yourusername/subwave) AI radio station server,
