@@ -20,10 +20,6 @@ const LAYOUT_LABELS = {
 const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4 };
 
 const REQUEST_MODES = ["hidden", "always"];
-const REQUEST_MODE_LABELS = {
-  hidden: "Hidden - tap card to show",
-  always: "Always on",
-};
 
 // Shared across every layout: the power button (outline circle, grey glyph
 // when off, red when on/playing - matching the native SUB/WAVE player) and
@@ -583,6 +579,10 @@ class SubwaveCardEditor extends HTMLElement {
             border: 1px solid var(--divider-color); background: var(--card-background-color);
             color: var(--primary-text-color); font: inherit;
           }
+          .helper-text {
+            font-size: 12px; color: var(--secondary-text-color);
+            margin: -8px 0 0; line-height: 1.4;
+          }
         </style>
         <div class="subwave-editor">
           <div class="layout-field">
@@ -591,10 +591,11 @@ class SubwaveCardEditor extends HTMLElement {
           </div>
           <div class="entity-slot"></div>
           <ha-textfield class="title-field" label="Card title (optional)"></ha-textfield>
-          <div class="layout-field">
-            <label for="subwave-requests-select">Request form</label>
-            <select id="subwave-requests-select" class="requests-select"></select>
+          <div class="row">
+            <label>Request form always on</label>
+            <ha-switch class="requests-toggle-switch"></ha-switch>
           </div>
+          <p class="helper-text">When toggled off, tap the card to show or hide the request form.</p>
           <div class="row">
             <label>Show DJ name/tagline</label>
             <ha-switch class="show-dj"></ha-switch>
@@ -627,15 +628,12 @@ class SubwaveCardEditor extends HTMLElement {
         this._updateConfig({ title: event.target.value || undefined });
       });
 
-      this._requestsSelect = this.querySelector(".requests-select");
-      REQUEST_MODES.forEach((key) => {
-        const opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = REQUEST_MODE_LABELS[key] || key;
-        this._requestsSelect.appendChild(opt);
-      });
-      this._requestsSelect.addEventListener("change", (event) => {
-        this._updateConfig({ requests_mode: event.target.value, show_requests: undefined });
+      this._requestsToggle = this.querySelector(".requests-toggle-switch");
+      this._requestsToggle.addEventListener("change", (event) => {
+        this._updateConfig({
+          requests_mode: event.target.checked ? "always" : "hidden",
+          show_requests: undefined,
+        });
       });
 
       this._showDj = this.querySelector(".show-dj");
@@ -650,7 +648,7 @@ class SubwaveCardEditor extends HTMLElement {
     this._picker.hass = this._hass;
     this._picker.value = this._config.entity || "";
     this._titleField.value = this._config.title || "";
-    this._requestsSelect.value = this._config.requests_mode;
+    this._requestsToggle.checked = this._config.requests_mode === "always";
     this._showDj.checked = this._config.show_dj !== false;
   }
 
