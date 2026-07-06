@@ -29,6 +29,8 @@ For each configured SUB/WAVE server you get one device with:
 
 ## Installation (HACS)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=CtznSniiips&repository=HA-subwave&category=integration)
+
 1. HACS → the "⋮" menu → **Custom repositories**
 2. Add this repo's URL, category **Integration**
 3. Install "SUB/WAVE", then restart Home Assistant
@@ -44,30 +46,6 @@ directory, restart HA, then add the integration as above.
 
 After setup, click **Configure** on the integration to change the polling
 interval (default 15s, range 5–120s).
-
-## Requests, queue, and DJ activity (`/api/state` and `/api/session`)
-
-In addition to `/api/now-playing`, this integration polls two more
-endpoints each cycle, both fetched concurrently and treated as
-non-critical - if your SUB/WAVE version doesn't have one, or it's
-temporarily unreachable, the core entities (now playing, DJ, listeners,
-weather, stream) keep working fine; only the sensors derived from that
-endpoint go blank.
-
-- **`/api/state`** - listener requests, the upcoming queue, play history,
-  and a terse DJ activity log (`sensor.<station>_up_next`,
-  `sensor.<station>_last_request`, `sensor.<station>_dj_activity`,
-  `binary_sensor.<station>_needs_setup`).
-- **`/api/session`** - the full session transcript: the DJ's actual
-  spoken commentary between tracks, its reasoning for each track pick,
-  and scenario/mood-shift events (`sensor.<station>_dj_commentary`,
-  `sensor.<station>_session`).
-- **`/api/health`** - a lightweight status check (`sensor.<station>_broadcast_status`).
-
-This is the natural hook for anything reacting to listener shoutouts or
-requests - e.g. an automation on `sensor.<station>_last_request` changing
-state to fire a TTS announcement or flash a light when someone requests a
-song through SUB/WAVE's native request queue.
 
 ## Album art
 
@@ -88,13 +66,14 @@ listener request form. It's registered automatically as a frontend module
 when the integration loads, so there's no manual step in Settings →
 Dashboards → Resources.
 
-**Layouts**: the card ships with three selectable layouts:
+**Layouts**: the card ships with four selectable layouts:
 
-| Layout | Feel |
-|---|---|
-| `compact` (default) | Single-row tile - art thumbnail, title/artist, station name, power button, volume slider, listener count. Smallest footprint. |
-| `hero` | Large centered album art, big power button, volume slider, everything stacked and centered. |
-| `retro` | Monospace "LED readout" track display with album art nested to the right inside the readout box, an ON AIR / OFFLINE badge, volume slider next to the power button. |
+| Layout | Feel | Screenshot |
+|---|---|---|
+| `compact` (default) | Single-row tile - art thumbnail, title/artist, station name, power button, volume slider, listener count. Smallest footprint. | <img src="/screenshots/compact.png" height="300" /> |
+| `hero` | Large centered album art, big power button, volume slider, everything stacked and centered. | <img src="/screenshots/hero_art.png" height="300" /> |
+| `retro` | Monospace "LED readout" track display with album art nested to the right inside the readout box, an ON AIR / OFFLINE badge, volume slider next to the power button. | <img src="/screenshots/retrofm.png" height="300" /> |
+| `requests` | Just the station name and request form — text + optional name + Send button. Nothing else: no art, no now-playing title, no power button, no volume slider. | <img src="/screenshots/requests.png" height="300" /> |
 
 **Adding it:** Edit a dashboard → Add Card → search "SUB/WAVE Radio", or
 add it via YAML:
