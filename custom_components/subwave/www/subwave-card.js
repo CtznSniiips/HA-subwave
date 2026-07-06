@@ -11,13 +11,14 @@
 const CARD_TAG = "subwave-card";
 const EDITOR_TAG = "subwave-card-editor";
 
-const LAYOUTS = ["compact", "hero", "retro"];
+const LAYOUTS = ["compact", "hero", "retro", "requests"];
 const LAYOUT_LABELS = {
   compact: "Compact",
   hero: "Hero art",
   retro: "Retro FM",
+  requests: "Requests only",
 };
-const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4 };
+const LAYOUT_BASE_SIZE = { compact: 3, hero: 7, retro: 4, requests: 3 };
 
 const REQUEST_MODES = ["hidden", "always"];
 
@@ -85,7 +86,7 @@ const COMMON_STYLE = `
   </style>
 `;
 
-function requestBlockHtml(config) {
+function requestBlockHtml(config, forceVisible) {
   const formHtml = `
     <form class="request-form">
       <input type="text" class="req-text" placeholder="Request a song or a vibe…" maxlength="200" />
@@ -94,7 +95,7 @@ function requestBlockHtml(config) {
     </form>
     <div class="feedback"></div>
   `;
-  if (config.requests_mode === "hidden") {
+  if (!forceVisible && config.requests_mode === "hidden") {
     return `<div class="request-wrap" style="display:none;">${formHtml}</div>`;
   }
   return `<div class="request-wrap">${formHtml}</div>`;
@@ -107,8 +108,9 @@ const POWER_BTN_HTML = `
 `;
 
 function layoutTemplate(layout, config) {
-  const requestBlock = requestBlockHtml(config);
-  const toggleClass = config.requests_mode === "hidden" ? " requests-toggle" : "";
+  const requestBlock = requestBlockHtml(config, layout === "requests");
+  const toggleClass =
+    layout !== "requests" && config.requests_mode === "hidden" ? " requests-toggle" : "";
 
   if (layout === "hero") {
     return `
@@ -199,6 +201,28 @@ function layoutTemplate(layout, config) {
           .layout-retro .controls { display: flex; align-items: center; gap: 12px; }
           .layout-retro .pwr-btn { width: 44px; height: 44px; }
           .layout-retro .volume { flex: 1; }
+        </style>
+      `;
+  }
+
+  if (layout === "requests") {
+    return `
+      <ha-card>
+        <div class="subwave-card layout-requests">
+          <div class="requests-heading">
+            <span class="station-tag"></span>
+            <span class="subline"></span>
+          </div>
+          ${requestBlock}
+        </div>
+        ${COMMON_STYLE}
+        <style>
+          .layout-requests .requests-heading { margin-bottom: 10px; min-height: 1em; }
+          .layout-requests .station-tag { display: block; font-weight: 500; font-size: 0.95rem; }
+          .layout-requests .subline {
+            display: block; font-size: 0.8rem; color: var(--secondary-text-color); margin-top: 2px;
+          }
+          .layout-requests .request-form { margin-top: 0; }
         </style>
       `;
   }
@@ -295,7 +319,9 @@ class SubwaveCard extends HTMLElement {
 
   getCardSize() {
     if (!this._config) return 4;
-    const base = LAYOUT_BASE_SIZE[this._config.layout] || 4;
+    const layout = this._config.layout;
+    const base = LAYOUT_BASE_SIZE[layout] || 4;
+    if (layout === "requests") return base;
     // "hidden" mode starts collapsed (just a one-line hint), so it doesn't
     // need the same reserved space as a form that's always visible.
     return base + (this._config.requests_mode === "always" ? 1 : 0);
@@ -381,7 +407,11 @@ class SubwaveCard extends HTMLElement {
       });
     }
 
-    if (this._config.requests_mode === "hidden" && els.cardBody) {
+    if (
+      this._config.layout !== "requests" &&
+      this._config.requests_mode === "hidden" &&
+      els.cardBody
+    ) {
       els.cardBody.addEventListener("click", (event) => {
         if (event.target.closest("input, button, a")) return;
         this._toggleRequestForm();
@@ -591,11 +621,12 @@ class SubwaveCardEditor extends HTMLElement {
           </div>
           <div class="entity-slot"></div>
           <ha-textfield class="title-field" label="Card title (optional)"></ha-textfield>
-          <div class="row">
+          <div class="row requests-toggle-row">
             <label>Request form always on</label>
             <ha-switch class="requests-toggle-switch"></ha-switch>
           </div>
-          <p class="helper-text">When toggled off, tap the card to show or hide the request form.</p>
+          <p class="helper-text requests-toggle-helper">When toggled off, tap the card to show or hide the request form.</p>
+          <p class="helper-text requests-only-note">The "Requests only" layout always shows the request form, so this toggle is skipped.</p>
           <div class="row">
             <label>Show DJ name/tagline</label>
             <ha-switch class="show-dj"></ha-switch>
@@ -628,6 +659,9 @@ class SubwaveCardEditor extends HTMLElement {
         this._updateConfig({ title: event.target.value || undefined });
       });
 
+      this._requestsToggleRow = this.querySelector(".requests-toggle-row");
+      this._requestsToggleHelper = this.querySelector(".requests-toggle-helper");
+      this._requestsOnlyNote = this.querySelector(".requests-only-note");
       this._requestsToggle = this.querySelector(".requests-toggle-switch");
       this._requestsToggle.addEventListener("change", (event) => {
         this._updateConfig({
@@ -649,6 +683,10 @@ class SubwaveCardEditor extends HTMLElement {
     this._picker.value = this._config.entity || "";
     this._titleField.value = this._config.title || "";
     this._requestsToggle.checked = this._config.requests_mode === "always";
+    const isRequestsLayout = this._config.layout === "requests";
+    this._requestsToggleRow.style.display = isRequestsLayout ? "none" : "";
+    this._requestsToggleHelper.style.display = isRequestsLayout ? "none" : "";
+    this._requestsOnlyNote.style.display = isRequestsLayout ? "" : "none";
     this._showDj.checked = this._config.show_dj !== false;
   }
 

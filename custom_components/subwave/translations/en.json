@@ -46,6 +46,9 @@
     "binary_sensor": {
       "stream_online": { "name": "Stream Online" },
       "needs_setup": { "name": "Needs Setup" }
+    },
+    "switch": {
+      "stream_proxy_enabled": { "name": "Stream Proxy" }
     }
   }
 }

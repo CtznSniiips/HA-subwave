@@ -10,7 +10,12 @@ from .coordinator import SubWaveCoordinator
 from .frontend import async_register_frontend
 from .http import SubWaveRequestProxyView, SubWaveStreamProxyView
 
-PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER, Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.MEDIA_PLAYER,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+]
 
 _HUB_REGISTERED_KEY = f"{DOMAIN}_hub_registered"
 

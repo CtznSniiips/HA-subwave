@@ -71,6 +71,7 @@ class SubWaveNeedsSetup(SubWaveEntity, BinarySensorEntity):
     _attr_translation_key = "needs_setup"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: SubWaveCoordinator, entry_id: str) -> None:
         super().__init__(coordinator, entry_id)

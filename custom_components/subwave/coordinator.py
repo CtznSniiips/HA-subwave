@@ -32,6 +32,13 @@ class SubWaveCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.base_url = f"http://{host}:{port}"
         self._session = async_get_clientsession(hass)
 
+        # Local HA-side setting (not part of the polled SUB/WAVE data) that
+        # lets the stream proxy switch entity shrink the unauthenticated
+        # attack surface of SubWaveStreamProxyView by turning the proxy off
+        # entirely when it isn't needed. Defaults on since it's the only way
+        # to reach the stream remotely (Nabu Casa/reverse proxy).
+        self.stream_proxy_enabled = True
+
         super().__init__(
             hass,
             _LOGGER,

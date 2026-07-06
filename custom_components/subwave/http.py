@@ -58,6 +58,9 @@ class SubWaveStreamProxyView(HomeAssistantView):
         if coordinator is None:
             return web.Response(status=404, text="Unknown SUB/WAVE server")
 
+        if not getattr(coordinator, "stream_proxy_enabled", True):
+            return web.Response(status=403, text="Stream proxy is disabled")
+
         upstream_url = coordinator.stream_url(fmt)
         session = async_get_clientsession(self.hass)
 
@@ -167,7 +170,14 @@ def get_proxy_stream_url(
     order (via allow_cloud/allow_external/allow_internal/allow_ip). Set
     prefer_external=True to bias toward the externally-reachable URL even
     when called from a context where HA thinks it's "local".
+
+    Returns None if the stream proxy switch has been turned off for this
+    entry_id, in addition to the existing "no usable base URL" case.
     """
+    coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+    if coordinator is not None and not getattr(coordinator, "stream_proxy_enabled", True):
+        return None
+
     try:
         base = get_url(
             hass,
