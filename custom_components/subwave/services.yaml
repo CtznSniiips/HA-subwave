@@ -1,0 +1,17 @@
+submit_request:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: subwave
+    text:
+      required: true
+      example: "Take On Me by a-ha"
+      selector:
+        text:
+    name:
+      required: false
+      example: "Steve"
+      selector:
+        text:

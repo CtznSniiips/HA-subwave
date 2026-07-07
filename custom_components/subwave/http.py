@@ -8,7 +8,6 @@ internet.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 
 import aiohttp
@@ -20,6 +19,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from .const import DOMAIN, STREAM_FORMATS
+from .coordinator import SubWaveRequestError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,31 +130,18 @@ class SubWaveRequestProxyView(HomeAssistantView):
         if not text or not isinstance(text, str):
             return web.json_response({"error": '"text" is required'}, status=400)
 
-        body: dict[str, str] = {"text": text}
         name = (payload or {}).get("name")
-        if name and isinstance(name, str):
-            body["name"] = name
+        if not isinstance(name, str):
+            name = None
 
-        session = async_get_clientsession(self.hass)
         try:
-            async with asyncio.timeout(10):
-                async with session.post(coordinator.requests_url, json=body) as resp:
-                    raw = await resp.text()
-                    try:
-                        parsed = json.loads(raw) if raw else {}
-                    except ValueError:
-                        # SUB/WAVE didn't return JSON - still forward the
-                        # status code but wrap the text so callApi() (which
-                        # expects JSON) doesn't choke on it.
-                        parsed = {"raw": raw}
-                    return web.json_response(parsed, status=resp.status)
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOGGER.warning(
-                "Failed to submit SUB/WAVE request to %s: %s",
-                coordinator.requests_url,
-                err,
-            )
+            parsed = await coordinator.async_submit_request(text, name)
+        except SubWaveRequestError as err:
+            _LOGGER.warning("Failed to submit SUB/WAVE request: %s", err)
             return web.json_response({"error": "Could not reach SUB/WAVE"}, status=502)
+
+        status = parsed.pop("_status")
+        return web.json_response(parsed, status=status)
 
 
 def get_proxy_stream_url(

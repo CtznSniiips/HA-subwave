@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import timedelta
 from typing import Any
@@ -15,6 +16,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import API_HEALTH, API_NOW_PLAYING, API_REQUESTS, API_SESSION, API_STATE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class SubWaveRequestError(Exception):
+    """Raised when a listener request could not be submitted to SUB/WAVE."""
 
 
 class SubWaveCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -109,6 +114,39 @@ class SubWaveCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data["sessionLog"] = session_log
         data["health"] = health
         return data
+
+    async def async_submit_request(
+        self, text: str, name: str | None = None
+    ) -> dict[str, Any]:
+        """Submit a listener request to SUB/WAVE.
+
+        Shared by the HTTP proxy view (used by the Lovelace card) and the
+        subwave.submit_request service (used by Assist/voice, scripts, and
+        automations), so both paths behave identically.
+
+        Raises SubWaveRequestError if SUB/WAVE can't be reached or times out.
+        """
+        body: dict[str, str] = {"text": text}
+        if name:
+            body["name"] = name
+
+        try:
+            async with asyncio.timeout(10):
+                async with self._session.post(self.requests_url, json=body) as resp:
+                    raw = await resp.text()
+                    try:
+                        parsed = json.loads(raw) if raw else {}
+                    except ValueError:
+                        # SUB/WAVE didn't return JSON - still surface the
+                        # status code but wrap the text so callers expecting
+                        # JSON don't choke on it.
+                        parsed = {"raw": raw}
+                    parsed["_status"] = resp.status
+                    return parsed
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            raise SubWaveRequestError(
+                f"Could not reach SUB/WAVE at {self.requests_url}: {err}"
+            ) from err
 
     async def _async_fetch_json(self, url: str) -> dict[str, Any]:
         try:

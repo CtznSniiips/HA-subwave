@@ -1,0 +1,23 @@
+# Sample Assist custom sentences for SUB/WAVE's "SubwaveSubmitRequest" intent.
+#
+# Home Assistant only loads custom sentences from your config directory -
+# HACS/custom integrations can't install into it automatically. To enable
+# this:
+#   1. Copy this file to config/custom_sentences/en/subwave.yaml
+#   2. Restart Home Assistant (or reload Assist from Developer Tools > YAML)
+#   3. Try: "Hey Assist, request Take On Me by a-ha"
+#
+# If you run more than one SUB/WAVE server, this intent always targets
+# whichever one was set up first - use the subwave.submit_request service
+# directly (e.g. from a sentence trigger automation) if you need to pick a
+# specific server by voice.
+
+language: "en"
+intents:
+  SubwaveSubmitRequest:
+    data:
+      - sentences:
+          - "request [a] {text}"
+          - "request [a] {text} on subwave"
+          - "play [a] {text} on subwave"
+          - "[can you] add {text} to the subwave queue"

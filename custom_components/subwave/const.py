@@ -22,7 +22,14 @@ API_HEALTH = "/api/health"
 # Maps stream format key -> file name served by SUB/WAVE
 CARD_URL_BASE = "/subwave_files"
 CARD_FILENAME = "subwave-card.js"
-INTEGRATION_VERSION = "0.6.4"
+INTEGRATION_VERSION = "0.6.5"
+
+SERVICE_SUBMIT_REQUEST = "submit_request"
+ATTR_CONFIG_ENTRY_ID = "config_entry_id"
+ATTR_TEXT = "text"
+ATTR_NAME = "name"
+
+INTENT_SUBMIT_REQUEST = "SubwaveSubmitRequest"
 
 STREAM_FORMATS = {
     "mp3": "stream.mp3",

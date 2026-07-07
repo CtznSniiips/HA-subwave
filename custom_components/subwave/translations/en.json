@@ -50,5 +50,25 @@
     "switch": {
       "stream_proxy_enabled": { "name": "Stream Proxy" }
     }
+  },
+  "services": {
+    "submit_request": {
+      "name": "Submit request",
+      "description": "Submits a listener request to a SUB/WAVE server, the same as using the Requests field on the Lovelace card. Useful for Assist/voice control, scripts, and automations.",
+      "fields": {
+        "config_entry_id": {
+          "name": "SUB/WAVE server",
+          "description": "The SUB/WAVE server to send the request to."
+        },
+        "text": {
+          "name": "Request",
+          "description": "What to request, e.g. a song title and artist."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optional name to attribute the request to."
+        }
+      }
+    }
   }
 }

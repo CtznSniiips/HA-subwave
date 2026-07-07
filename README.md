@@ -123,6 +123,29 @@ write action; the card handles that automatically via `hass.callApi()`.
 The "Your name" field is remembered in the browser (`localStorage`) so
 repeat listeners don't have to retype it.
 
+### Requests via voice / Assist
+
+There's also a `subwave.submit_request` service that does the same thing
+as the card's Requests form, for use in scripts, automations, or Assist:
+
+```yaml
+service: subwave.submit_request
+data:
+  config_entry_id: <your SUB/WAVE config entry>
+  text: "Take On Me by a-ha"
+  name: "Steve"   # optional
+```
+
+To trigger this by voice, copy
+[`custom_sentences/en/subwave.yaml`](custom_sentences/en/subwave.yaml) from
+this repo into your HA config at `config/custom_sentences/en/subwave.yaml`
+and restart Home Assistant (custom sentences have to live in your config
+directory - HACS can't install them there automatically). That gives you
+sentences like "request Take On Me by a-ha" through Assist. If you run more
+than one SUB/WAVE server, the voice intent always targets whichever one
+was set up first; use the service directly (e.g. from a sentence trigger
+automation) if you need to pick a specific server.
+
 ## Remote access (stream proxy)
 
 SUB/WAVE's own stream URLs (`http://192.168.x.x:7700/stream.mp3`) only work
