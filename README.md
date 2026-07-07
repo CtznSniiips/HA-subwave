@@ -1,9 +1,8 @@
 # <img src="/custom_components/subwave/brand/icon.png" height="60" /> SUB/WAVE for Home Assistant
 
-A HACS-compatible custom integration that connects Home Assistant to a
-[SUB/WAVE](https://github.com/yourusername/subwave) AI radio station server,
-polling `/api/now-playing` and exposing what's playing, the current AI DJ,
-listener counts, weather/show context, and the live stream URLs.
+A HACS-compatible custom integration that connects Home Assistant to a [SUB/WAVE]([https://github.com/yourusername/subwave](https://github.com/perminder-klair/subwave)) AI radio station server, exposing what's playing, the current AI DJ, listener counts, weather/show context, and the live stream URLs. 
+
+A lovelace card is included with 4 different layout styles allowing you to play your station and make requests right from your Home Assistant dashboard. A built-in proxy allows streaming your station even when accessing Home Assistant remotely.
 
 ## Entities created
 
