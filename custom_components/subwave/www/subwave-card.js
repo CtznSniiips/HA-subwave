@@ -552,11 +552,28 @@ class SubwaveCard extends HTMLElement {
     if (this._requesterName) body.name = this._requesterName;
 
     try {
-      await this._hass.callApi("POST", this._requestsEndpoint, body);
+      const response = await this._hass.fetchWithAuth(`/api/${this._requestsEndpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // Non-JSON body - fall through, response.ok/status still tell us what happened.
+      }
+
+      if (!response.ok) {
+        const serverMessage = data && (data.error || data.raw);
+        throw new Error(serverMessage || `Request failed (${response.status})`);
+      }
+
       this._showFeedback("Request sent!", false, true);
       this._els.reqText.value = "";
     } catch (err) {
-      this._showFeedback("Couldn't send that request. Try again?", true);
+      this._showFeedback(err.message || "Couldn't send that request. Try again?", true);
     } finally {
       this._sending = false;
       this._els.reqSubmit.disabled = !this._requestsEndpoint;
