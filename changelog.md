@@ -2,6 +2,13 @@
 
 All notable changes to the SUB/WAVE Home Assistant integration are documented here.
 
+## 0.6.6
+### Fixed
+- Corrected the listener-request endpoint path in const.py: API_REQUESTS was /api/requests and has been changed to the actual SUB/WAVE route, /api/request (singular). This was causing every request submitted through the Lovelace card, the subwave.submit_request service, and the Assist intent to fail with a 404
+
+### Changed
+- The Lovelace card's request form now calls hass.fetchWithAuth() directly instead of hass.callApi(), so it can read the JSON error body SUB/WAVE returns on a failed request (e.g. no listeners connected) and show that message in the card's feedback text, instead of a generic "Couldn't send that request" for every failure.
+
 ## 0.6.5
 
 ### Added
